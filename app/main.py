@@ -224,34 +224,269 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
 
     cert_html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
+      <meta charset="UTF-8">
       <title>Certificate of Honor - {record.name}</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com">
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+      <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
       <style>
-        body {{ background: #0c0f17; color: #f0f6fc; font-family: 'Georgia', serif; display: flex; justify-content: center; padding: 2rem; }}
-        .cert-border {{ border: 12px double #e5c07b; padding: 3rem; max-width: 800px; width: 100%; text-align: center; background: #121722; box-shadow: 0 0 50px rgba(229,192,123,0.3); }}
-        h1 {{ font-size: 2.2rem; color: #e5c07b; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.5rem; }}
-        h2 {{ font-size: 1.5rem; color: #ffffff; margin-bottom: 1.5rem; }}
-        .name {{ font-size: 2.5rem; color: #e5c07b; text-decoration: underline; margin: 1.5rem 0; }}
-        p {{ font-size: 1.1rem; line-height: 1.8; color: #c9d1d9; }}
-        .scripture {{ font-style: italic; background: rgba(229,192,123,0.1); padding: 1rem; border-left: 4px solid #e5c07b; margin: 1.5rem 0; }}
-        .footer {{ margin-top: 2.5rem; font-size: 0.9rem; color: #8b949e; border-top: 1px solid #30363d; padding-top: 1rem; }}
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{
+          background: #0d0f14;
+          font-family: 'Playfair Display', serif;
+          color: #1a1a1a;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 2rem 1rem;
+          min-height: 100vh;
+        }}
+
+        /* Print Control Bar */
+        .print-bar {{
+          position: fixed;
+          top: 1rem;
+          background: rgba(18, 23, 33, 0.95);
+          border: 1px solid #e5c07b;
+          border-radius: 30px;
+          padding: 0.75rem 1.75rem;
+          display: flex;
+          gap: 1rem;
+          align-items: center;
+          box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+          z-index: 9999;
+          backdrop-filter: blur(10px);
+        }}
+
+        .print-btn {{
+          background: #e5c07b;
+          color: #000;
+          border: none;
+          padding: 0.6rem 1.3rem;
+          border-radius: 20px;
+          font-weight: 700;
+          font-family: sans-serif;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: all 0.2s ease;
+        }}
+        .print-btn:hover {{ background: #fff; transform: scale(1.05); }}
+
+        /* Certificate Paper Sheet */
+        .cert-container {{
+          width: 950px;
+          height: 670px;
+          background: #fdfbf7;
+          background-image: 
+            radial-gradient(circle at 50% 50%, #fffdf9 0%, #f7f2e6 100%);
+          border: 12px double #b8860b;
+          box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 100px rgba(184, 134, 11, 0.08);
+          padding: 2.5rem;
+          margin-top: 4rem;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          text-align: center;
+        }}
+
+        .cert-inner-border {{
+          border: 2px solid #b8860b;
+          height: 100%;
+          padding: 2rem 3rem;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }}
+
+        /* Header Calligraphy */
+        .cert-header h1 {{
+          font-family: 'Cinzel', serif;
+          font-size: 2.2rem;
+          color: #1a2332;
+          letter-spacing: 4px;
+          text-transform: uppercase;
+          font-weight: 900;
+        }}
+
+        .cert-header h2 {{
+          font-family: 'Cinzel', serif;
+          font-size: 1.1rem;
+          color: #b8860b;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          margin-top: 0.3rem;
+        }}
+
+        .attest-line {{
+          font-size: 1.05rem;
+          color: #4a4a4a;
+          font-style: italic;
+          margin-top: 1.25rem;
+        }}
+
+        /* Recipient Name */
+        .recipient-name {{
+          font-family: 'Cinzel', serif;
+          font-size: 2.5rem;
+          color: #b8860b;
+          font-weight: 700;
+          margin: 1rem 0 0.5rem;
+          border-bottom: 2px solid #b8860b;
+          display: inline-block;
+          padding-bottom: 0.25rem;
+        }}
+
+        .agency-line {{
+          font-size: 1.2rem;
+          color: #222;
+          line-height: 1.6;
+        }}
+
+        .eow-badge {{
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: #8b0000;
+          margin-top: 0.75rem;
+        }}
+
+        /* Scripture Box */
+        .scripture-box {{
+          font-style: italic;
+          font-size: 1rem;
+          color: #333;
+          background: rgba(184, 134, 11, 0.06);
+          border-left: 3px solid #b8860b;
+          padding: 0.75rem 1.25rem;
+          margin: 1rem auto;
+          max-width: 680px;
+        }}
+
+        /* Footer & Signatures */
+        .cert-footer {{
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          margin-top: 1.5rem;
+          padding-top: 1rem;
+          border-top: 1px solid #d4af37;
+        }}
+
+        .sig-block {{
+          text-align: center;
+          width: 220px;
+        }}
+
+        .sig-line {{
+          font-family: 'Alex Brush', cursive;
+          font-size: 2rem;
+          color: #0d1b2a;
+          border-bottom: 1px solid #777;
+          margin-bottom: 0.3rem;
+        }}
+
+        .sig-title {{
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #555;
+          font-family: sans-serif;
+        }}
+
+        /* Official Gold Seal Badge */
+        .gold-seal {{
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          background: radial-gradient(ellipse at center, #ffd700 0%, #b8860b 100%);
+          border: 4px double #ffffff;
+          box-shadow: 0 0 15px rgba(184, 134, 11, 0.6);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          color: #000;
+          font-family: 'Cinzel', serif;
+          font-size: 0.6rem;
+          font-weight: 900;
+          text-align: center;
+          padding: 0.5rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }}
+
+        .serial-num {{
+          font-size: 0.75rem;
+          color: #777;
+          font-family: monospace;
+          position: absolute;
+          bottom: 0.75rem;
+          right: 3rem;
+        }}
+
+        @media print {{
+          body {{ background: #fff; padding: 0; }}
+          .print-bar {{ display: none; }}
+          .cert-container {{
+            margin-top: 0;
+            box-shadow: none;
+            width: 100%;
+            height: 100vh;
+            border-width: 8px;
+          }}
+        }}
       </style>
     </head>
     <body>
-      <div class="cert-border">
-        <h1>NATIONAL CERTIFICATE OF HONOR</h1>
-        <h2>Line-of-Duty Ultimate Sacrifice</h2>
-        <p>This official certificate solemnly attests that</p>
-        <div class="name">{record.name}</div>
-        <p>of the <strong>{record.agency}</strong> gave their life in courageous service and protection of the public.</p>
-        <p><strong>End of Watch:</strong> {record.date_of_death or 'Line of Duty'}</p>
-        {f'<div class="scripture">"{record.bible_verse}"<br>— <strong>{record.bible_reference}</strong></div>' if record.bible_verse else ''}
-        <div class="footer">
-          Sequential Memorial ID: #{record.id} • Verified Honor Roll Record<br>
-          <em>"Greater love has no one than this: to lay down one's life for one's friends."</em>
+
+      <div class="print-bar">
+        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.9rem;">📜 Official Tribute Certificate</span>
+        <button class="print-btn" onclick="window.print()">🖨️ Print / Download PDF</button>
+      </div>
+
+      <div class="cert-container">
+        <div class="cert-inner-border">
+          
+          <div class="cert-header">
+            <h1>UNITED STATES HONOR ROLL</h1>
+            <h2>National Certificate of Line-of-Duty Valor</h2>
+            <div class="attest-line">This official document solemnly attests and places into perpetual honor</div>
+          </div>
+
+          <div>
+            <div class="recipient-name">{record.name}</div>
+            <div class="agency-line">
+              of the <strong>{record.agency}</strong><br>
+              who gave their life in valiant service, sacrifice, and protection of the public.
+            </div>
+            <div class="eow-badge">End of Watch: {record.date_of_death or 'Line of Duty'}</div>
+          </div>
+
+          {f'<div class="scripture-box">"{record.bible_verse}"<br>— <strong>{record.bible_reference}</strong></div>' if record.bible_verse else ''}
+
+          <div class="cert-footer">
+            <div class="sig-block">
+              <div class="sig-line">Arthur Pendelton</div>
+              <div class="sig-title">National Chaplain General</div>
+            </div>
+
+            <div class="gold-seal">
+              ⭐<br>OFFICIAL<br>HONOR ROLL<br>SEAL
+            </div>
+
+            <div class="sig-block">
+              <div class="sig-line">Marcus Vance</div>
+              <div class="sig-title">Director of Registry</div>
+            </div>
+          </div>
+
+          <div class="serial-num">Official Certificate Serial No. NFRM-2026-#{record.id}</div>
         </div>
       </div>
+
     </body>
     </html>
     """
@@ -347,6 +582,18 @@ async def create_custom_memorial(
 @app.post("/api/admin/maintenance", tags=["Staff Admin Portal"])
 async def toggle_maintenance_mode(auth: str = Depends(verify_staff_password)):
     settings.MAINTENANCE_MODE = not settings.MAINTENANCE_MODE
+    if hasattr(bot, 'change_presence') and bot.is_ready():
+        import discord
+        if settings.MAINTENANCE_MODE:
+            await bot.change_presence(
+                status=discord.Status.dnd,
+                activity=discord.Activity(name="🛠️ System Maintenance in Progress", type=discord.ActivityType.watching)
+            )
+        else:
+            await bot.change_presence(
+                status=discord.Status.online,
+                activity=discord.Activity(name="Line of Duty Memorials", type=discord.ActivityType.watching)
+            )
     return {"status": "updated", "maintenance_mode": settings.MAINTENANCE_MODE}
 
 
