@@ -1,5 +1,5 @@
 """
-Discord Embed Builder for Rich, Detailed Memorial Announcements, Incident Reports, & Stats.
+Discord Embed Builder for Rich, Human-Grade Memorial Announcements, Incident Reports, & Stats.
 """
 import discord
 from datetime import datetime
@@ -7,13 +7,13 @@ from typing import Dict, Any, List
 from app.models import ResponderRecord, ResponderCategory, GuildConfig, ApprovalStatus
 
 CATEGORY_COLORS = {
-    ResponderCategory.LAW_ENFORCEMENT: discord.Color.blue(),
-    ResponderCategory.FIRE: discord.Color.red(),
-    ResponderCategory.EMS: discord.Color.green(),
-    ResponderCategory.RESCUE: discord.Color.orange(),
-    ResponderCategory.K9: discord.Color.gold(),
-    ResponderCategory.DISPATCH: discord.Color.purple(),
-    ResponderCategory.OTHER: discord.Color.dark_grey(),
+    ResponderCategory.LAW_ENFORCEMENT: discord.Color.from_rgb(30, 85, 180),
+    ResponderCategory.FIRE: discord.Color.from_rgb(195, 40, 40),
+    ResponderCategory.EMS: discord.Color.from_rgb(35, 140, 75),
+    ResponderCategory.RESCUE: discord.Color.from_rgb(220, 110, 20),
+    ResponderCategory.K9: discord.Color.from_rgb(215, 165, 50),
+    ResponderCategory.DISPATCH: discord.Color.from_rgb(125, 60, 180),
+    ResponderCategory.OTHER: discord.Color.from_rgb(90, 100, 115),
 }
 
 CATEGORY_THUMBNAILS = {
@@ -27,23 +27,35 @@ CATEGORY_THUMBNAILS = {
 }
 
 
+def clean_text(val: str) -> str:
+    """Removes bracketed prefixes and AI jargon."""
+    if not val:
+        return ""
+    import re
+    text = re.sub(r"\[TEST(?: AI| SAMPLE)?(?: TRIBUTE| DRAFT)?\]", "", val, flags=re.IGNORECASE)
+    text = re.sub(r"^```(?:json)?\n?", "", text)
+    text = re.sub(r"\n?```$", "", text)
+    return text.strip()
+
+
 def create_memorial_embed(record: ResponderRecord, custom_header: str = None) -> discord.Embed:
     """
-    Constructs a rich, highly detailed Discord Embed for a fallen responder.
-    Includes department profile, EOW dates, full AI tribute, scripture, K9 profile, registry verification, and sequential ID.
+    Constructs a dignified, human-grade Discord Embed for a fallen responder.
+    Clean typography, official badges, and zero robotic phrasing.
     """
     category_enum = record.category if isinstance(record.category, ResponderCategory) else ResponderCategory(record.category)
     color = CATEGORY_COLORS.get(category_enum, discord.Color.blue())
 
+    name = clean_text(record.name) or "Fallen Emergency Responder"
+    agency = clean_text(record.agency) or "Emergency Services"
+    summary = clean_text(record.ai_memorial_text or record.summary)
+
     title_prefix = f"[{custom_header}] " if custom_header else "🛡️ IN MEMORIAM: "
-    title = f"{title_prefix}{record.name}"
+    title = f"{title_prefix}{name}"
 
     embed = discord.Embed(
         title=title,
-        description=(
-            f"**Dedicated Service & Line-of-Duty Sacrifice**\n"
-            f"> *\"{record.ai_memorial_text or record.summary or 'In solemn honor of courageous public service.'}\"*"
-        ),
+        description=f"**{agency}**\n\n{summary}",
         color=color,
         timestamp=datetime.utcnow()
     )
@@ -52,93 +64,70 @@ def create_memorial_embed(record: ResponderRecord, custom_header: str = None) ->
     thumb_url = record.photo_url or CATEGORY_THUMBNAILS.get(category_enum, "https://img.icons8.com/color/96/police-badge.png")
     embed.set_thumbnail(url=thumb_url)
 
-    # Department & Unit Profile
-    embed.add_field(name="🏛️ Agency / Department", value=f"**{record.agency or 'Emergency Services'}**", inline=True)
-    embed.add_field(name="🛡️ Service Branch", value=f"**{category_enum.value.replace('_', ' ').title()}**", inline=True)
-
-    # Incident & EOW Dates
+    # Department & End of Watch
     eow_val = record.date_of_death or "End of Watch"
-    embed.add_field(name="🕯️ End of Watch (EOW)", value=f"**{eow_val}**", inline=True)
+    embed.add_field(name="🏛️ Agency", value=agency, inline=True)
+    embed.add_field(name="🛡️ Branch", value=category_enum.value.replace('_', ' ').title(), inline=True)
+    embed.add_field(name="🕯️ End of Watch", value=f"**{eow_val}**", inline=True)
 
     if record.date_of_incident and record.date_of_incident != record.date_of_death:
-        embed.add_field(name="📅 Date of Incident", value=record.date_of_incident, inline=True)
-
-    # Summary of Duty & Incident
-    if record.summary:
-        embed.add_field(name="📋 Summary of Duty & Incident", value=record.summary, inline=False)
-
-    # National Registry Auto-Verification & Medals
-    ver_status = "✅ Verified National Honor Roll"
-    if record.nleomf_verified or record.odmp_verified:
-        ver_status = "✅ NLEOMF & ODMP Registry Verified"
-    elif record.fire_hero_verified:
-        ver_status = "✅ National Fire Hero Registry Verified"
-
-    awards_str = record.unit_awards or "Medal of Valor, Line of Duty Honor Roll"
-    embed.add_field(
-        name="🎖️ National Registry Verification & Unit Medals",
-        value=f"• **Verification Status:** `{ver_status}`\n• **Honors & Medals:** {awards_str}",
-        inline=False
-    )
+        embed.add_field(name="📅 Incident Date", value=record.date_of_incident, inline=True)
 
     # Specialized K9 Profile
     if category_enum == ResponderCategory.K9 or record.k9_handler_name:
         k9_info = ""
         if record.k9_handler_name:
-            k9_info += f"• **Handler Name:** {record.k9_handler_name}\n"
+            k9_info += f"• **Handler:** {record.k9_handler_name}\n"
         if record.k9_breed:
-            k9_info += f"• **Canine Breed:** {record.k9_breed}\n"
+            k9_info += f"• **Breed:** {record.k9_breed}\n"
         if record.service_years:
-            k9_info += f"• **Years of Service:** {record.service_years}\n"
-        if record.unit_badge:
-            k9_info += f"• **K9 Unit Badge:** {record.unit_badge}\n"
+            k9_info += f"• **Service:** {record.service_years}\n"
         if k9_info:
-            embed.add_field(name="🐾 K9 Unit Badge & Handler Profile", value=k9_info, inline=False)
+            embed.add_field(name="🐾 K9 Unit Details", value=k9_info, inline=False)
+
+    # Registry Verification & Medals (Only if genuinely verified)
+    if record.nleomf_verified or record.odmp_verified or record.fire_hero_verified:
+        ver_status = "✅ NLEOMF & ODMP Registry Verified" if (record.nleomf_verified or record.odmp_verified) else "✅ National Fire Hero Verified"
+        awards_str = record.unit_awards or "National Line of Duty Honor Roll"
+        embed.add_field(name="🎖️ Registry Verification", value=f"{ver_status}\n• **Honors:** {awards_str}", inline=False)
 
     # Scripture Blessing
     if record.bible_verse and record.bible_reference:
         embed.add_field(
-            name="📖 Scripture Tribute & Blessing",
-            value=f"> *\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
+            name="📖 Scripture Tribute",
+            value=f"*\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
             inline=False
         )
 
-    # Public Tributes & Candle Stats
+    # Candles Count
     candles_count = record.candle_count if record.candle_count else 0
-    embed.add_field(
-        name="🕯️ Public Tribute Metrics",
-        value=f"• **Virtual Candles Lit:** `{candles_count}`\n• **Family Claim:** {'Verified Family Page' if record.claimed_by_family else 'Public Tribute Page'}",
-        inline=False
-    )
+    embed.add_field(name="🕯️ Virtual Candles", value=f"`{candles_count}` lit in honor", inline=True)
 
-    # Links & Official Resources (No 'Staff Entry' text!)
-    article_label = record.article_title if (record.article_title and "Staff Entry" not in record.article_title) else "Official Memorial Record"
+    # Links & Resources
+    article_label = clean_text(record.article_title) or "Official Memorial Record"
     embed.add_field(
-        name="🔗 Official Links & Resources",
+        name="🔗 Tribute Resources",
         value=(
-            f"🌐 [View on Web Wall](https://fallen-memorial-bot.onrender.com/wall) | "
-            f"📜 [Print Certificate](https://fallen-memorial-bot.onrender.com/responders/{record.id}/certificate) | "
+            f"🌐 [Web Wall](https://fallen-memorial-bot.onrender.com/wall) | "
+            f"📜 [Certificate](https://fallen-memorial-bot.onrender.com/responders/{record.id}/certificate) | "
             f"📰 [{article_label}]({record.article_url})"
         ),
         inline=False
     )
 
-    embed.set_footer(
-        text=f"Sequential Memorial ID: #{record.id} | Status: APPROVED • Honor Roll"
-    )
-
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Line of Duty Honor Roll")
     return embed
 
 
 def create_incident_report_embed(record: ResponderRecord, report_text: str) -> discord.Embed:
     embed = discord.Embed(
-        title=f"📄 Line-of-Duty Incident Analysis Report — ID #{record.id}",
-        description=f"**Responder:** {record.name}\n**Agency:** {record.agency}\n**EOW:** {record.date_of_death or 'Line of Duty'}",
+        title=f"📄 Line-of-Duty Incident Analysis — ID #{record.id}",
+        description=f"**Responder:** {clean_text(record.name)}\n**Agency:** {clean_text(record.agency)}\n**EOW:** {record.date_of_death or 'Line of Duty'}",
         color=discord.Color.dark_blue(),
         timestamp=datetime.utcnow()
     )
-    embed.add_field(name="📋 AI Intelligence Analysis", value=report_text[:1024], inline=False)
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Fallen Officer Intelligence System")
+    embed.add_field(name="📋 Incident Analysis", value=report_text[:1024], inline=False)
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id}")
     return embed
 
 
@@ -148,23 +137,23 @@ def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord
     year_str = f"{years_ago} Year{'s' if years_ago > 1 else ''} Ago Today" if years_ago > 0 else "Annual Anniversary"
 
     embed = discord.Embed(
-        title=f"🕯️ EOW Anniversary Remembrance — {record.name}",
-        description=f"**{year_str}**, we lost a hero from **{record.agency}**. Today we honor their lasting legacy and ultimate sacrifice.",
+        title=f"🕯️ EOW Anniversary Remembrance — {clean_text(record.name)}",
+        description=f"**{year_str}**, we lost a hero from **{clean_text(record.agency)}**. Today we honor their lasting legacy and service.",
         color=color,
         timestamp=datetime.utcnow()
     )
 
-    embed.add_field(name="🏛️ Agency", value=record.agency, inline=True)
+    embed.add_field(name="🏛️ Agency", value=clean_text(record.agency), inline=True)
     embed.add_field(name="🕯️ End of Watch", value=record.date_of_death or "Line of Duty", inline=True)
 
     if record.bible_verse and record.bible_reference:
         embed.add_field(
             name="📖 Scripture Tribute",
-            value=f"> *\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
+            value=f"*\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
             inline=False
         )
 
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Always Remembered, Never Forgotten")
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Always Remembered")
     return embed
 
 
@@ -172,43 +161,37 @@ def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
     embed = discord.Embed(
         title=f"🚨 [Pending Review] Memorial ID #{record.id}",
         description=(
-            f"**Name:** {record.name}\n"
-            f"**Agency:** {record.agency}\n"
+            f"**Name:** {clean_text(record.name)}\n"
+            f"**Agency:** {clean_text(record.agency)}\n"
             f"**Category:** {record.category}\n\n"
-            f"**AI Memorial Draft:**\n{record.ai_memorial_text}"
+            f"**Draft Bio:**\n{clean_text(record.ai_memorial_text or record.summary)}"
         ),
-        color=discord.Color.yellow(),
+        color=discord.Color.gold(),
         timestamp=datetime.utcnow()
     )
-    if record.k9_handler_name:
-        embed.add_field(name="Handler", value=record.k9_handler_name, inline=True)
-    if record.k9_breed:
-        embed.add_field(name="Breed", value=record.k9_breed, inline=True)
-
-    article_label = record.article_title if (record.article_title and "Staff Entry" not in record.article_title) else "Source News Article"
-    embed.add_field(name="Article Title", value=article_label, inline=False)
-    embed.add_field(name="Article URL", value=record.article_url, inline=False)
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Click interactive buttons below to approve, edit, or reject.")
+    article_label = clean_text(record.article_title) or "Source News Article"
+    embed.add_field(name="Source Article", value=f"[{article_label}]({record.article_url})", inline=False)
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Click buttons below to approve or reject.")
     return embed
 
 
 def create_eulogy_embed(record: ResponderRecord, eulogy_text: str) -> discord.Embed:
     embed = discord.Embed(
-        title=f"🕊️ Formal Eulogy Speech — {record.name}",
+        title=f"🕊️ Formal Eulogy Speech — {clean_text(record.name)}",
         description=eulogy_text,
         color=discord.Color.dark_purple(),
         timestamp=datetime.utcnow()
     )
-    embed.add_field(name="Agency", value=record.agency, inline=True)
+    embed.add_field(name="Agency", value=clean_text(record.agency), inline=True)
     embed.add_field(name="End of Watch", value=record.date_of_death or "Line of Duty", inline=True)
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | AI Chaplain Tribute")
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Chaplain Honor Roll")
     return embed
 
 
 def create_timeline_embed(record: ResponderRecord, timeline_events: List[Dict[str, str]]) -> discord.Embed:
     embed = discord.Embed(
-        title=f"⏱️ Incident Timeline — {record.name}",
-        description=f"Chronological details for Memorial ID **#{record.id}** ({record.agency})",
+        title=f"⏱️ Incident Timeline — {clean_text(record.name)}",
+        description=f"Chronological details for Memorial ID **#{record.id}** ({clean_text(record.agency)})",
         color=discord.Color.dark_gold(),
         timestamp=datetime.utcnow()
     )

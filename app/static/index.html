@@ -67,7 +67,6 @@
       padding: 2rem 1.5rem;
     }
 
-    /* Navigation & View Toggles */
     .view-toggles {
       display: flex;
       justify-content: center;
@@ -94,7 +93,6 @@
       box-shadow: 0 0 15px var(--gold-glow);
     }
 
-    /* Controls Bar */
     .controls-wrapper {
       display: flex;
       flex-direction: column;
@@ -134,7 +132,6 @@
       font-weight: 700;
     }
 
-    /* Cards Grid */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -189,7 +186,6 @@
       font-size: 0.85rem;
     }
 
-    /* Map Container */
     #mapContainer {
       height: 550px;
       border-radius: 20px;
@@ -198,7 +194,6 @@
       display: none;
     }
 
-    /* Drawer Modal */
     .drawer-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -278,10 +273,16 @@
 
     async function fetchWallData() {
       try {
-        const res = await fetch('/responders?api_key=memorial_secret_admin_key_2026');
+        const res = await fetch('/api/memorials');
         if (res.ok) {
           const data = await res.json();
           wallRecords = data.records || [];
+        } else {
+          const latestRes = await fetch('/latest');
+          if (latestRes.ok) {
+            const rec = await latestRes.json();
+            wallRecords = [rec];
+          }
         }
         renderGrid();
       } catch (err) {
@@ -300,6 +301,11 @@
         return matchesCat && matchesSearch;
       });
 
+      if (filtered.length === 0) {
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color: var(--muted); padding: 3rem;">No approved memorial records found yet.</p>`;
+        return;
+      }
+
       filtered.forEach(r => {
         const card = document.createElement('div');
         card.className = 'memorial-card';
@@ -313,8 +319,8 @@
           </div>
           <div class="card-actions">
             <button class="candle-button" onclick="lightVirtualCandle(${r.id}, event)">🕯️ Light Candle (<span id="cCount-${r.id}">${r.candle_count || 0}</span>)</button>
-            <a href="/responders/${r.id}/certificate" target="_blank" style="color: var(--gold); font-size: 0.85rem;">📜 Certificate</a>
-            <button style="background:none; border:none; color:var(--text); cursor:pointer;" onclick="openDrawer(${r.id})">Details 📖</button>
+            <a href="/responders/${r.id}/certificate" target="_blank" style="color: var(--gold); font-size: 0.85rem; font-weight:600;">📜 Certificate</a>
+            <button style="background:none; border:none; color:var(--text); cursor:pointer; font-weight:600;" onclick="openDrawer(${r.id})">Details 📖</button>
           </div>
         `;
         grid.appendChild(card);

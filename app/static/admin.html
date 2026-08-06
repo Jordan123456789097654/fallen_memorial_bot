@@ -38,7 +38,6 @@
       display: flex;
     }
 
-    /* Auth Modal */
     .auth-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -74,7 +73,6 @@
       text-align: center;
     }
 
-    /* Sidebar Navigation */
     aside {
       width: 280px;
       background: var(--sidebar-bg);
@@ -121,7 +119,6 @@
       font-weight: 600;
     }
 
-    /* Main Content */
     main {
       flex: 1;
       padding: 2rem 2.5rem;
@@ -151,7 +148,6 @@
     .badge-ok { background: rgba(35, 134, 54, 0.2); color: #56d364; border: 1px solid rgba(35, 134, 54, 0.4); }
     .badge-maint { background: rgba(218, 54, 51, 0.2); color: #ff7b72; border: 1px solid rgba(218, 54, 51, 0.4); }
 
-    /* Stats Cards */
     .metrics-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -170,11 +166,9 @@
     .metric-card h4 { color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem; }
     .metric-card .val { font-size: 2rem; font-weight: 700; color: var(--text); }
 
-    /* Tab Content Panels */
     .panel { display: none; }
     .panel.active { display: block; }
 
-    /* Form Layout */
     .form-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -207,11 +201,6 @@
       outline: none;
     }
 
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-      border-color: var(--gold);
-    }
-
-    /* Tables & Action Cards */
     .card-panel {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -468,6 +457,7 @@
         if (res.ok) {
           document.getElementById('authModal').style.display = 'none';
           loadAllData();
+          setInterval(loadAllData, 10000);
         } else {
           alert('Invalid Staff Admin Password!');
         }
@@ -514,11 +504,23 @@
 
     async function loadAllData() {
       try {
-        const res = await fetch('/responders?api_key=memorial_secret_admin_key_2026');
+        const headers = { 
+          'X-Admin-Password': staffPass,
+          'X-API-Key': 'memorial_secret_admin_key_2026'
+        };
+
+        const res = await fetch('/responders?api_key=memorial_secret_admin_key_2026', { headers });
         if (res.ok) {
           const data = await res.json();
           allAdminRecords = data.records || [];
           renderAllTables();
+        } else {
+          const pubRes = await fetch('/api/memorials');
+          if (pubRes.ok) {
+            const pubData = await pubRes.json();
+            allAdminRecords = pubData.records || [];
+            renderAllTables();
+          }
         }
 
         const statusRes = await fetch('/api/status');
@@ -530,7 +532,7 @@
           document.getElementById('valGuilds').innerText = s.database_stats.configured_servers;
         }
 
-        const guildRes = await fetch('/guilds?api_key=memorial_secret_admin_key_2026');
+        const guildRes = await fetch('/guilds?api_key=memorial_secret_admin_key_2026', { headers });
         if (guildRes.ok) {
           const gData = await guildRes.json();
           renderServersTable(gData.guilds || []);
@@ -547,7 +549,12 @@
       pBody.innerHTML = '';
       aBody.innerHTML = '';
 
+      const query = (document.getElementById('adminSearch')?.value || '').toLowerCase();
+
       allAdminRecords.forEach(r => {
+        const matchesQuery = (r.name || '').toLowerCase().includes(query) || (r.agency || '').toLowerCase().includes(query);
+        if (!matchesQuery) return;
+
         const row = document.createElement('tr');
         if (r.status === 'PENDING') {
           row.innerHTML = `
@@ -576,6 +583,10 @@
           aBody.appendChild(row);
         }
       });
+    }
+
+    function filterAdminRecords() {
+      renderAllTables();
     }
 
     function renderServersTable(guilds) {

@@ -1,6 +1,6 @@
 """
 Discord Slash Commands Implementation.
-Includes /config subcommands, /setstatus, /test_embed, /translate, /rollcall, and 30+ commands.
+Includes /config subcommands (/config header, /config role, /config mode, etc.), /setstatus, /test_embed, /translate, /rollcall, and 30+ commands.
 """
 import io
 import csv
@@ -59,6 +59,43 @@ class ConfigGroup(app_commands.Group):
             config = get_or_create_guild_config(db, interaction.guild)
             embed = create_config_embed(interaction.guild, config)
             await interaction.followup.send(embed=embed, ephemeral=True)
+        finally:
+            db.close()
+
+    @app_commands.command(name="header", description="Set a custom title header prefix for memorial cards in this server.")
+    @app_commands.describe(header_text="Custom header slogan (e.g. 'HONORING OUR HEROES')")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_header(self, interaction: discord.Interaction, header_text: str = None):
+        await interaction.response.defer(ephemeral=True)
+        db: Session = SessionLocal()
+        try:
+            config = get_or_create_guild_config(db, interaction.guild)
+            config.custom_header = header_text
+            db.commit()
+
+            await interaction.followup.send(
+                f"✅ **Custom Header Updated:** Set to `{header_text or 'None'}`.",
+                ephemeral=True
+            )
+        finally:
+            db.close()
+
+    @app_commands.command(name="role", description="Set alert role pinged for pending or new memorials.")
+    @app_commands.describe(role="Select role to ping for alerts (or leave empty to clear)")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_role(self, interaction: discord.Interaction, role: discord.Role = None):
+        await interaction.response.defer(ephemeral=True)
+        db: Session = SessionLocal()
+        try:
+            config = get_or_create_guild_config(db, interaction.guild)
+            config.alert_role_id = str(role.id) if role else None
+            db.commit()
+
+            role_msg = f"<@&{role.id}>" if role else "Cleared"
+            await interaction.followup.send(
+                f"✅ **Alert Role Updated:** Alert role set to {role_msg}.",
+                ephemeral=True
+            )
         finally:
             db.close()
 
@@ -123,6 +160,48 @@ class ConfigGroup(app_commands.Group):
             db.commit()
             await interaction.followup.send(
                 f"✅ **Server Approval Mode Updated:** Set to `{mode.value}` for **{interaction.guild.name}**.",
+                ephemeral=True
+            )
+        finally:
+            db.close()
+
+    @app_commands.command(name="webhooks", description="Toggle external webhook notifications for this server.")
+    @app_commands.describe(enabled="Enable or disable outgoing webhooks")
+    @app_commands.choices(enabled=[
+        app_commands.Choice(name="ENABLE", value="ENABLE"),
+        app_commands.Choice(name="DISABLE", value="DISABLE"),
+    ])
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_webhooks(self, interaction: discord.Interaction, enabled: app_commands.Choice[str]):
+        await interaction.response.defer(ephemeral=True)
+        db: Session = SessionLocal()
+        try:
+            config = get_or_create_guild_config(db, interaction.guild)
+            config.enable_webhooks = (enabled.value == "ENABLE")
+            db.commit()
+            await interaction.followup.send(
+                f"✅ **Webhooks Toggle Updated:** Webhooks are now `{enabled.value}D` for **{interaction.guild.name}**.",
+                ephemeral=True
+            )
+        finally:
+            db.close()
+
+    @app_commands.command(name="social", description="Toggle X (Twitter) & BlueSky social media posting for this server.")
+    @app_commands.describe(enabled="Enable or disable social media auto-posting")
+    @app_commands.choices(enabled=[
+        app_commands.Choice(name="ENABLE", value="ENABLE"),
+        app_commands.Choice(name="DISABLE", value="DISABLE"),
+    ])
+    @app_commands.checks.has_permissions(manage_guild=True)
+    async def config_social(self, interaction: discord.Interaction, enabled: app_commands.Choice[str]):
+        await interaction.response.defer(ephemeral=True)
+        db: Session = SessionLocal()
+        try:
+            config = get_or_create_guild_config(db, interaction.guild)
+            config.enable_social = (enabled.value == "ENABLE")
+            db.commit()
+            await interaction.followup.send(
+                f"✅ **Social Media Toggle Updated:** Social posting is now `{enabled.value}D` for **{interaction.guild.name}**.",
                 ephemeral=True
             )
         finally:
@@ -244,7 +323,7 @@ def register_slash_commands(bot: discord.Client):
                 date_of_incident="2026-08-01",
                 date_of_death="2026-08-02 (End of Watch)",
                 summary="[TEST SAMPLE DRAFT] This is a test announcement to verify channel layout, color codes, and embed permissions.",
-                article_title="[TEST] Sample Emergency News Article Title",
+                article_title="Official Memorial Record",
                 article_url="https://example.com/test-news-article",
                 source_domain="example.com",
                 bible_verse="Greater love has no one than this: to lay down one's life for one's friends.",
@@ -331,9 +410,13 @@ def register_slash_commands(bot: discord.Client):
             name="⚙️ Server Configuration (`/config`)",
             value=(
                 "• `/config view` — View current server profile & settings.\n"
-                "• `/config admin_role <role>` — Set designated Admin Role for commands.\n"
+                "• `/config header <text>` — Set custom title header prefix.\n"
+                "• `/config role <role>` — Set alert ping role.\n"
+                "• `/config admin_role <role>` — Set designated Admin Role.\n"
                 "• `/config bot_nickname <name>` — Edit bot server nickname.\n"
-                "• `/config mode` — Toggle approval mode (MANUAL or AUTO).\n"
+                "• `/config mode <MANUAL/AUTO>` — Toggle approval mode.\n"
+                "• `/config webhooks <ENABLE/DISABLE>` — Toggle webhooks.\n"
+                "• `/config social <ENABLE/DISABLE>` — Toggle social posts.\n"
                 "• `/config setup` — Re-run channel auto-creation."
             ),
             inline=False

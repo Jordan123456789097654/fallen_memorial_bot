@@ -154,9 +154,20 @@ async def serve_admin_portal():
     return FileResponse("app/static/admin.html")
 
 
+@app.get("/api/memorials", tags=["Public Memorials"])
+async def get_public_memorials(db: Session = Depends(get_db)):
+    """Returns all approved memorial records for public Web Wall display."""
+    records = (
+        db.query(ResponderRecord)
+        .filter(ResponderRecord.status == ApprovalStatus.APPROVED)
+        .order_by(ResponderRecord.id.desc())
+        .all()
+    )
+    return {"count": len(records), "records": [r.to_dict() for r in records]}
+
+
 @app.post("/responders/{id}/verify", tags=["ODMP & NLEOMF Registry Auto-Verification"])
 async def trigger_registry_verification(id: int, db: Session = Depends(get_db)):
-    """Cross-matches record against NLEOMF, ODMP, and Fire Hero national registries."""
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
@@ -288,7 +299,6 @@ async def create_custom_memorial(
     import time
     art_url = payload.article_url or f"https://memorial.custom/entry/{int(time.time())}"
 
-    # Auto-verify against national registries
     ver_res = await verify_responder_registry({
         "name": payload.name,
         "agency": payload.agency,
