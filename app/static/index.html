@@ -588,7 +588,18 @@
       }
     }
 
-    function updateHeroStats() {
+    async function updateHeroStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('statHeroes').innerText = data.total_memorials !== undefined ? data.total_memorials : wallRecords.length;
+          document.getElementById('statCandles').innerText = data.global_candles !== undefined ? data.global_candles : 0;
+          document.getElementById('statVerified').innerText = data.verified_percent || "100%";
+          document.getElementById('statGuilds').innerText = data.connected_guilds !== undefined ? data.connected_guilds : 0;
+          return;
+        }
+      } catch(e){}
       document.getElementById('statHeroes').innerText = wallRecords.length;
       const cSum = wallRecords.reduce((acc, r) => acc + (r.candle_count || 0), 0);
       document.getElementById('statCandles').innerText = cSum;
@@ -709,7 +720,10 @@
       renderGrid(); 
     }
     function filterWall() { renderGrid(); }
-    window.onload = fetchWallData;
+    window.onload = function() {
+      fetchWallData();
+      setInterval(updateHeroStats, 5000);
+    };
   </script>
 </body>
 </html>

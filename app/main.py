@@ -1057,3 +1057,30 @@ async def trigger_manual_scan(
         "status": "success",
         "message": "Manual news source scan initiated in background."
     }
+
+
+@app.get("/api/stats", tags=["Public Analytics"])
+async def get_public_system_stats(db: Session = Depends(get_db)):
+    total = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).count()
+    pending = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).count()
+    records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).all()
+
+    global_candles = sum((r.candle_count or 0) for r in records)
+    verified = sum(1 for r in records if (r.nleomf_verified or r.odmp_verified or r.fire_hero_verified))
+    verified_pct = f"{round((verified / total) * 100)}%" if total > 0 else "100%"
+
+    guild_count = 0
+    if bot and hasattr(bot, 'guilds') and bot.is_ready():
+        guild_count = len(bot.guilds)
+    if guild_count == 0:
+        guild_count = db.query(GuildConfig).count()
+
+    return {
+        "total_memorials": total,
+        "pending_memorials": pending,
+        "global_candles": global_candles,
+        "verified_count": verified,
+        "verified_percent": verified_pct,
+        "connected_guilds": guild_count,
+        "maintenance_mode": settings.MAINTENANCE_MODE
+    }

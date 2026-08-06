@@ -588,28 +588,23 @@
           }
         }
 
-        const statusRes = await fetch('/api/status');
+        const statusRes = await fetch('/api/stats');
         if (statusRes.ok) {
           const s = await statusRes.json();
-          document.getElementById('valTotal').innerText = s.database_stats.total_memorials;
-          document.getElementById('valPending').innerText = s.database_stats.pending_review;
-          document.getElementById('valApproved').innerText = s.database_stats.approved;
-          document.getElementById('valGuilds').innerText = s.database_stats.configured_servers;
+          document.getElementById('valTotal').innerText = s.total_memorials !== undefined ? s.total_memorials : allAdminRecords.length;
+          document.getElementById('valPending').innerText = s.pending_memorials !== undefined ? s.pending_memorials : allAdminRecords.filter(r => r.status === 'PENDING').length;
+          document.getElementById('valApproved').innerText = s.total_memorials !== undefined ? s.total_memorials : allAdminRecords.filter(r => r.status === 'APPROVED').length;
+          document.getElementById('valGuilds').innerText = s.connected_guilds !== undefined ? s.connected_guilds : 0;
           
-          if (!certConfigLoaded) {
-            if (s.cert_chaplain_name && document.activeElement !== document.getElementById('certChaplainInput')) {
-              document.getElementById('certChaplainInput').value = s.cert_chaplain_name;
+          const badge = document.getElementById('maintBadge');
+          if (badge) {
+            if (s.maintenance_mode) {
+              badge.innerText = '• Maintenance Mode Active';
+              badge.className = 'status-badge status-maint';
+            } else {
+              badge.innerText = '● System Operational';
+              badge.className = 'status-badge status-active';
             }
-            if (s.cert_chaplain_title && document.activeElement !== document.getElementById('certChapTitleInput')) {
-              document.getElementById('certChapTitleInput').value = s.cert_chaplain_title;
-            }
-            if (s.cert_director_name && document.activeElement !== document.getElementById('certDirectorInput')) {
-              document.getElementById('certDirectorInput').value = s.cert_director_name;
-            }
-            if (s.cert_director_title && document.activeElement !== document.getElementById('certDirTitleInput')) {
-              document.getElementById('certDirTitleInput').value = s.cert_director_title;
-            }
-            certConfigLoaded = true;
           }
         }
 
