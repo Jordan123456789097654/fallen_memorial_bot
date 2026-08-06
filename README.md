@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🛡️ Fallen Officer Memorial Intelligence System
 
 A multi-server, production-ready Python application for emergency responder line-of-duty death monitoring, AI intelligence processing, Discord memorial broadcasts, and an interactive **Public Web Memorial Wall**.
@@ -61,3 +62,6 @@ Specialized tracking fields for K9 heroes:
 
 ## 📜 License
 Released under the MIT License for honor and solemn remembrance of emergency responders who gave the ultimate sacrifice.
+=======
+# fallen_memorial_bot
+>>>>>>> 0b7d061043f4075c241e363f2b9ed9ed5fe1cff8

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi>=0.110.0
 uvicorn[standard]>=0.28.0
 discord.py>=2.3.2
@@ -11,3 +12,17 @@ google-generativeai>=0.4.1
 pydantic>=2.6.4
 pydantic-settings>=2.2.1
 python-dotenv>=1.0.1
+=======
+fastapi==0.111.0
+uvicorn==0.30.1
+discord.py==2.4.0
+SQLAlchemy==2.0.31
+apscheduler==3.10.4
+beautifulsoup4==4.12.3
+feedparser==6.0.11
+requests==2.32.3
+aiohttp==3.9.5
+google-generativeai==0.5.4
+python-dotenv==1.0.1
+pydantic==2.7.4
+>>>>>>> 0b7d061043f4075c241e363f2b9ed9ed5fe1cff8
