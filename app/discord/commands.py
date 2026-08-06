@@ -488,3 +488,8 @@ def setup_commands(bot: discord.Client):
             inline=False
         )
         await interaction.followup.send(embed=embed)
+
+
+# Alias for backward compatibility with app.bot
+register_slash_commands = setup_commands
+

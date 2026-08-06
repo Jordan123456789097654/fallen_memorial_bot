@@ -1,6 +1,6 @@
 """
 Discord UI Component Views and Modals.
-Provides interactive buttons and modals for one-click approval, editing, and AI regeneration in #bot-logs.
+Provides interactive buttons and modals for one-click approval, editing, candle lighting, and AI eulogies.
 """
 import random
 import discord
@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
 from app.models import ResponderRecord, ApprovalStatus
-from app.discord.embeds import create_memorial_embed, create_pending_approval_embed
-from app.scanner import post_approved_memorial, load_bible_verses
+from app.discord.embeds import create_memorial_embed, create_pending_approval_embed, create_eulogy_embed
 from app.ai import get_ai_provider
 from app.utils.logger import logger
 
@@ -99,37 +98,36 @@ class PendingReviewView(ui.View):
 
     @ui.button(label="Approve", style=discord.ButtonStyle.green, custom_id="approve_btn", emoji="✅")
     async def approve_button(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.defer(ephemeral=False)
+        await interaction.response.defer(ephemeral=True)
         db: Session = SessionLocal()
         try:
             record = db.query(ResponderRecord).filter(ResponderRecord.id == self.record_id).first()
             if not record:
-                await interaction.followup.send(f"❌ Record `#{self.record_id}` not found.")
-                return
-
-            if record.status == ApprovalStatus.APPROVED:
-                await interaction.followup.send(f"⚠️ Record `#{self.record_id}` is already approved.")
+                await interaction.followup.send("❌ Record not found.", ephemeral=True)
                 return
 
             record.status = ApprovalStatus.APPROVED
             db.commit()
             db.refresh(record)
 
+            from app.scanner import post_approved_memorial
             await post_approved_memorial(interaction.client, record)
 
             for child in self.children:
                 child.disabled = True
-            await interaction.message.edit(view=self)
-
-            await interaction.followup.send(
-                f"✅ **Approved & Published Memorial ID `#{record.id}`** for **{record.name}** ({record.agency})!"
-            )
+            await interaction.message.edit(content=f"✅ **APPROVED by {interaction.user.name}**", view=self)
+            await interaction.followup.send(f"✅ Approved Memorial ID `#{record.id}`!", ephemeral=True)
         finally:
             db.close()
 
+    @ui.button(label="Edit", style=discord.ButtonStyle.blurple, custom_id="edit_btn", emoji="✏️")
+    async def edit_button(self, interaction: discord.Interaction, button: ui.Button):
+        modal = EditDraftModal(self.record_id)
+        await interaction.response.send_modal(modal)
+
     @ui.button(label="Reject", style=discord.ButtonStyle.red, custom_id="reject_btn", emoji="❌")
     async def reject_button(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.defer(ephemeral=False)
+        await interaction.response.defer(ephemeral=True)
         db: Session = SessionLocal()
         try:
             record = db.query(ResponderRecord).filter(ResponderRecord.id == self.record_id).first()
@@ -139,50 +137,56 @@ class PendingReviewView(ui.View):
 
             for child in self.children:
                 child.disabled = True
-            await interaction.message.edit(view=self)
-
-            await interaction.followup.send(f"🚫 **Rejected Memorial Draft ID `#{self.record_id}`.**")
+            await interaction.message.edit(content=f"❌ **REJECTED by {interaction.user.name}**", view=self)
+            await interaction.followup.send(f"❌ Rejected Memorial ID `#{self.record_id}`.", ephemeral=True)
         finally:
             db.close()
 
-    @ui.button(label="Edit Draft", style=discord.ButtonStyle.blurple, custom_id="edit_btn", emoji="✏️")
-    async def edit_button(self, interaction: discord.Interaction, button: ui.Button):
-        modal = EditDraftModal(self.record_id)
-        await interaction.response.send_modal(modal)
 
-    @ui.button(label="Regenerate AI", style=discord.ButtonStyle.gray, custom_id="remake_btn", emoji="🔄")
-    async def remake_button(self, interaction: discord.Interaction, button: ui.Button):
+class MemorialInteractionView(ui.View):
+    """
+    Interactive View attached to published Discord memorial posts allowing members to light candles & view certificates.
+    """
+
+    def __init__(self, record_id: int):
+        super().__init__(timeout=None)
+        self.record_id = record_id
+        cert_url = f"https://fallen-memorial-bot.onrender.com/responders/{record_id}/certificate"
+        self.add_item(ui.Button(label="📜 Certificate", url=cert_url, style=discord.ButtonStyle.link))
+
+    @ui.button(label="Light Candle", style=discord.ButtonStyle.gold, custom_id="light_candle_btn", emoji="🕯️")
+    async def light_candle_btn(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.defer(ephemeral=True)
         db: Session = SessionLocal()
         try:
             record = db.query(ResponderRecord).filter(ResponderRecord.id == self.record_id).first()
             if not record:
-                await interaction.followup.send(f"❌ Record `#{self.record_id}` not found.", ephemeral=True)
+                await interaction.followup.send("❌ Record not found.", ephemeral=True)
                 return
 
-            ai_provider = get_ai_provider()
-            verses = load_bible_verses()
-            selected_verse = random.choice(verses)
-
-            extracted_data = {
-                "name": record.name,
-                "agency": record.agency,
-                "category": record.category.value if hasattr(record.category, 'value') else record.category,
-                "summary": record.summary or record.article_title,
-                "date_of_death": record.date_of_death or "End of Watch"
-            }
-
-            new_text = await ai_provider.generate_memorial(extracted_data, selected_verse)
-            record.bible_verse = selected_verse.get("text")
-            record.bible_reference = selected_verse.get("reference")
-            record.ai_memorial_text = new_text
-
+            record.candle_count += 1
             db.commit()
             db.refresh(record)
 
-            embed = create_pending_approval_embed(record)
+            embed = create_memorial_embed(record)
             await interaction.message.edit(embed=embed)
+            await interaction.followup.send(f"🕯️ You lit a solemn memorial candle for **{record.name}**! Total Candles: **{record.candle_count}**", ephemeral=True)
+        finally:
+            db.close()
 
-            await interaction.followup.send(f"🔄 **Regenerated AI memorial draft for ID `#{record.id}`!**", ephemeral=True)
+    @ui.button(label="Read Eulogy", style=discord.ButtonStyle.secondary, custom_id="read_eulogy_btn", emoji="📖")
+    async def read_eulogy_btn(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        db: Session = SessionLocal()
+        try:
+            record = db.query(ResponderRecord).filter(ResponderRecord.id == self.record_id).first()
+            if not record:
+                await interaction.followup.send("❌ Record not found.", ephemeral=True)
+                return
+
+            ai_provider = get_ai_provider()
+            eulogy_text = await ai_provider.generate_eulogy(record.to_dict())
+            embed = create_eulogy_embed(record, eulogy_text)
+            await interaction.followup.send(embed=embed, ephemeral=True)
         finally:
             db.close()

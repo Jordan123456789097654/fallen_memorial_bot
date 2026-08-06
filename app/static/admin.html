@@ -370,7 +370,10 @@
     <!-- TAB 3: Pending Queue -->
     <div class="panel" id="tabPending">
       <div class="card-panel">
-        <h3>🚨 Pending Draft Review Queue</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3>🚨 Pending Draft Review Queue</h3>
+          <button class="action-btn btn-approve" style="padding: 0.75rem 1.25rem;" onclick="bulkApprovePending()">⚡ Bulk Approve All Pending Drafts</button>
+        </div>
         <div class="table-container">
           <table>
             <thead>
@@ -680,6 +683,24 @@
         `;
         sBody.appendChild(row);
       });
+    }
+
+    async function bulkApprovePending() {
+      const pendingRecords = allAdminRecords.filter(r => r.status === 'PENDING');
+      if (pendingRecords.length === 0) {
+        alert('No pending drafts to approve!');
+        return;
+      }
+      if (!confirm(`Approve all ${pendingRecords.length} pending draft memorial records?`)) return;
+
+      for (const r of pendingRecords) {
+        await fetch(`/api/admin/approve/${r.id}`, {
+          method: 'POST',
+          headers: { 'X-Admin-Password': staffPass }
+        });
+      }
+      alert(`✅ Successfully approved all ${pendingRecords.length} pending draft records!`);
+      loadAllData();
     }
 
     async function approveRecord(id) {

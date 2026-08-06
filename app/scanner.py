@@ -11,6 +11,7 @@ from app.models import ResponderRecord, ApprovalStatus, GuildConfig, WebhookSubs
 from app.config import settings
 from app.ai import get_ai_provider
 from app.discord.embeds import create_memorial_embed, create_pending_approval_embed, create_anniversary_embed
+from app.discord.views import MemorialInteractionView, PendingReviewView
 from app.discord.channels import get_or_create_guild_config
 from app.social import SocialPublisher
 from app.utils.logger import logger
@@ -89,7 +90,8 @@ async def daily_moment_of_silence(bot=None):
                     await logs_ch.send(content=f"🕯️ {role_ping}**DAILY MOMENT OF SILENCE & ROLL CALL OF HONOR:**")
                     for rec in today_matches:
                         embed = create_anniversary_embed(rec, years_ago=1)
-                        await logs_ch.send(embed=embed)
+                        view = MemorialInteractionView(rec.id)
+                        await logs_ch.send(embed=embed, view=view)
     except Exception as e:
         logger.error(f"Error executing Daily Moment of Silence roll call: {e}")
     finally:
@@ -194,7 +196,8 @@ async def broadcast_pending_review(bot, record: ResponderRecord):
             if logs_ch:
                 embed = create_pending_approval_embed(record)
                 role_ping = f"<@&{cfg.alert_role_id}> " if cfg.alert_role_id else ""
-                await logs_ch.send(content=f"🚨 {role_ping}**New Pending Memorial Draft Review:**", embed=embed)
+                view = PendingReviewView(record.id)
+                await logs_ch.send(content=f"🚨 {role_ping}**New Pending Memorial Draft Review:**", embed=embed, view=view)
     except Exception as e:
         logger.error(f"Error broadcasting pending review: {e}")
     finally:
@@ -219,7 +222,8 @@ async def post_approved_memorial(bot, record: ResponderRecord):
 
                 if target_ch:
                     embed = create_memorial_embed(record, custom_header=cfg.custom_header)
-                    msg = await target_ch.send(embed=embed)
+                    view = MemorialInteractionView(record.id)
+                    msg = await target_ch.send(embed=embed, view=view)
                     if msg:
                         record.discord_message_id = str(msg.id)
                         record.discord_channel_id = str(target_ch.id)
@@ -257,7 +261,8 @@ async def update_posted_discord_embeds(bot, record: ResponderRecord):
                             if msg.author == bot.user and msg.embeds:
                                 if f"#{record.id}" in msg.embeds[0].footer.text or record.name in msg.embeds[0].title:
                                     updated_embed = create_memorial_embed(record, custom_header=cfg.custom_header)
-                                    await msg.edit(embed=updated_embed)
+                                    view = MemorialInteractionView(record.id)
+                                    await msg.edit(embed=updated_embed, view=view)
                                     logger.info(f"Live updated Discord message #{msg.id} for Record #{record.id}")
                     except Exception as ex:
                         logger.debug(f"Error scanning channel {ch.name} for live update: {ex}")

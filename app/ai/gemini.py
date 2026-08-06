@@ -1,5 +1,5 @@
 """
-Google Gemini Implementation of AIProvider with Advanced Prompts & Multi-Language Translation.
+Google Gemini Implementation of AIProvider with Support for Both 'google-genai' and 'google-generativeai'.
 """
 import json
 import re
@@ -15,29 +15,66 @@ from app.ai.prompts import (
 from app.config import settings
 from app.utils.logger import logger
 
+HAS_NEW_GENAI = False
+HAS_LEGACY_GENAI = False
+
 try:
-    import google.generativeai as genai
-    HAS_GENAI = True
+    from google import genai as new_genai
+    HAS_NEW_GENAI = True
 except ImportError:
-    HAS_GENAI = False
+    HAS_NEW_GENAI = False
+
+try:
+    import google.generativeai as legacy_genai
+    HAS_LEGACY_GENAI = True
+except ImportError:
+    HAS_LEGACY_GENAI = False
 
 
 class GeminiProvider(AIProvider):
-    """Google Gemini AI Provider with robust fallback heuristics."""
+    """Google Gemini AI Provider supporting new google.genai and legacy packages."""
 
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
-        self.model_name = settings.GEMINI_MODEL
+        self.model_name = settings.GEMINI_MODEL or "gemini-2.5-flash"
         self._initialized = False
+        self.new_client = None
+        self.legacy_model = None
 
-        if HAS_GENAI and self.api_key and self.api_key != "your_google_gemini_api_key_here":
+        if HAS_NEW_GENAI and self.api_key and self.api_key != "your_google_gemini_api_key_here":
             try:
-                genai.configure(api_key=self.api_key)
-                self.model = genai.GenerativeModel(self.model_name)
+                self.new_client = new_genai.Client(api_key=self.api_key)
                 self._initialized = True
-                logger.info(f"Initialized Gemini AI Provider with model: {self.model_name}")
+                logger.info(f"Initialized Google GenAI (new SDK) with model: {self.model_name}")
             except Exception as e:
-                logger.error(f"Failed to initialize Gemini AI: {e}")
+                logger.error(f"Failed to initialize new Google GenAI SDK: {e}")
+
+        if not self._initialized and HAS_LEGACY_GENAI and self.api_key and self.api_key != "your_google_gemini_api_key_here":
+            try:
+                legacy_genai.configure(api_key=self.api_key)
+                self.legacy_model = legacy_genai.GenerativeModel(self.model_name)
+                self._initialized = True
+                logger.info(f"Initialized Google GenerativeAI (legacy SDK) with model: {self.model_name}")
+            except Exception as e:
+                logger.error(f"Failed to initialize legacy Gemini AI: {e}")
+
+    def _generate_text(self, prompt: str) -> str:
+        """Internal helper for generating text across new or legacy Gemini SDKs."""
+        if not self._initialized:
+            return ""
+        try:
+            if self.new_client:
+                response = self.new_client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt
+                )
+                return response.text.strip() if response and response.text else ""
+            elif self.legacy_model:
+                response = self.legacy_model.generate_content(prompt)
+                return response.text.strip() if response and response.text else ""
+        except Exception as e:
+            logger.error(f"Gemini API text generation error: {e}")
+        return ""
 
     async def extract_info(self, raw_text: str, article_title: str) -> Dict[str, Any]:
         """Parses article text using Gemini or fallback keyword heuristics."""
@@ -46,27 +83,27 @@ class GeminiProvider(AIProvider):
         if self._initialized:
             try:
                 prompt = f"{EXTRACTION_SYSTEM_PROMPT}\n\nNews Article:\n{combined_text}"
-                response = self.model.generate_content(prompt)
-                response_text = response.text.strip()
+                response_text = self._generate_text(prompt)
 
-                if response_text.startswith("```"):
-                    response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
-                    response_text = re.sub(r"\n?```$", "", response_text)
+                if response_text:
+                    if response_text.startswith("```"):
+                        response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+                        response_text = re.sub(r"\n?```$", "", response_text)
 
-                data = json.loads(response_text)
-                return {
-                    "is_fallen_responder": data.get("is_fallen_responder", True),
-                    "name": data.get("name", "Unknown Hero"),
-                    "agency": data.get("agency", "Unknown Emergency Agency"),
-                    "category": data.get("category", "OTHER"),
-                    "date_of_incident": data.get("date_of_incident", "Recent"),
-                    "date_of_death": data.get("date_of_death", "End of Watch"),
-                    "summary": data.get("summary", article_title),
-                    "k9_handler_name": data.get("k9_handler_name"),
-                    "k9_breed": data.get("k9_breed"),
-                    "service_years": data.get("service_years"),
-                    "unit_badge": data.get("unit_badge")
-                }
+                    data = json.loads(response_text)
+                    return {
+                        "is_fallen_responder": data.get("is_fallen_responder", True),
+                        "name": data.get("name", "Unknown Hero"),
+                        "agency": data.get("agency", "Unknown Emergency Agency"),
+                        "category": data.get("category", "OTHER"),
+                        "date_of_incident": data.get("date_of_incident", "Recent"),
+                        "date_of_death": data.get("date_of_death", "End of Watch"),
+                        "summary": data.get("summary", article_title),
+                        "k9_handler_name": data.get("k9_handler_name"),
+                        "k9_breed": data.get("k9_breed"),
+                        "service_years": data.get("service_years"),
+                        "unit_badge": data.get("unit_badge")
+                    }
             except Exception as e:
                 logger.error(f"Gemini API extraction error: {e}. Utilizing fallback parser.")
 
@@ -83,21 +120,18 @@ class GeminiProvider(AIProvider):
         v_ref = verse.get("reference", "")
 
         if self._initialized:
-            try:
-                prompt = MEMORIAL_GENERATION_PROMPT.format(
-                    name=name,
-                    agency=agency,
-                    category=category,
-                    summary=summary,
-                    date_of_death=date_of_death,
-                    verse_text=v_text,
-                    verse_ref=v_ref
-                )
-                response = self.model.generate_content(prompt)
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as e:
-                logger.error(f"Gemini memorial generation failed: {e}")
+            prompt = MEMORIAL_GENERATION_PROMPT.format(
+                name=name,
+                agency=agency,
+                category=category,
+                summary=summary,
+                date_of_death=date_of_death,
+                verse_text=v_text,
+                verse_ref=v_ref
+            )
+            text = self._generate_text(prompt)
+            if text:
+                return text
 
         return (
             f"It is with heavy hearts and profound honor that we remember **{name}** of **{agency}**. "
@@ -116,18 +150,15 @@ class GeminiProvider(AIProvider):
         eow = record_data.get("date_of_death", "End of Watch")
 
         if self._initialized:
-            try:
-                prompt = EULOGY_GENERATION_PROMPT.format(
-                    name=name,
-                    agency=agency,
-                    summary=summary,
-                    date_of_death=eow
-                )
-                response = self.model.generate_content(prompt)
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as e:
-                logger.error(f"Gemini eulogy generation failed: {e}")
+            prompt = EULOGY_GENERATION_PROMPT.format(
+                name=name,
+                agency=agency,
+                summary=summary,
+                date_of_death=eow
+            )
+            text = self._generate_text(prompt)
+            if text:
+                return text
 
         return (
             f"**Formal State Funeral Eulogy for {name}**\n\n"
@@ -143,13 +174,10 @@ class GeminiProvider(AIProvider):
     async def translate_memorial(self, text: str, target_language: str) -> str:
         """Translates memorial text and scripture into Spanish, French, German, or other languages."""
         if self._initialized and text:
-            try:
-                prompt = f"Translate the following solemn emergency responder memorial tribute text into {target_language}. Maintain reverence and honor:\n\n{text}"
-                response = self.model.generate_content(prompt)
-                if response and response.text:
-                    return response.text.strip()
-            except Exception as e:
-                logger.error(f"Gemini translation error: {e}")
+            prompt = f"Translate the following solemn emergency responder memorial tribute text into {target_language}. Maintain reverence and honor:\n\n{text}"
+            res_text = self._generate_text(prompt)
+            if res_text:
+                return res_text
         return f"[{target_language.upper()} TRANSLATION]: {text}"
 
     async def extract_timeline(self, raw_text: str) -> List[Dict[str, str]]:
@@ -157,12 +185,12 @@ class GeminiProvider(AIProvider):
         if self._initialized and raw_text:
             try:
                 prompt = TIMELINE_EXTRACTION_PROMPT.format(text=raw_text)
-                response = self.model.generate_content(prompt)
-                resp_text = response.text.strip()
-                if resp_text.startswith("```"):
-                    resp_text = re.sub(r"^```(?:json)?\n?", "", resp_text)
-                    resp_text = re.sub(r"\n?```$", "", resp_text)
-                return json.loads(resp_text)
+                resp_text = self._generate_text(prompt)
+                if resp_text:
+                    if resp_text.startswith("```"):
+                        resp_text = re.sub(r"^```(?:json)?\n?", "", resp_text)
+                        resp_text = re.sub(r"\n?```$", "", resp_text)
+                    return json.loads(resp_text)
             except Exception as e:
                 logger.error(f"Gemini timeline extraction error: {e}")
 
