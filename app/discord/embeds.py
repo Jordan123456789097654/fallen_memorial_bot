@@ -57,8 +57,6 @@ def create_memorial_embed(record: ResponderRecord, custom_header: str = None) ->
     cat_display = category_enum.value.replace('_', ' ').title()
 
     title_text = custom_header if custom_header else f"In Memory of {name}"
-    if name == "Fallen Emergency Responder" or "Hero" in name:
-        title_text = f"In Memory of Fallen {cat_display}"
 
     desc = (
         f"It is with heavy hearts and profound honor that we remember "

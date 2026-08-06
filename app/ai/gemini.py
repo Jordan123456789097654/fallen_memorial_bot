@@ -236,7 +236,8 @@ class GeminiProvider(AIProvider):
 
     def _fallback_extraction(self, text: str, title: str) -> Dict[str, Any]:
         """Smart regex and heuristic extraction fallback for news titles & articles."""
-        lower = f"{title} {text}".lower()
+        combined = f"{title}\n{text}"
+        lower = combined.lower()
 
         category = "OTHER"
         if any(w in lower for w in ["police", "officer", "sheriff", "trooper", "deputy", "cop", "patrol"]):
@@ -252,25 +253,51 @@ class GeminiProvider(AIProvider):
         elif any(w in lower for w in ["rescue", "search and rescue"]):
             category = "RESCUE"
 
-        # 1. Smart Name Extraction
-        name_match = re.search(r'\b(Officer|Deputy|Trooper|Detective|Sergeant|Captain|Lieutenant|Chief|Firefighter|Paramedic|K9|K-9)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)', title + " " + text)
-        if name_match:
-            name = f"{name_match.group(1)} {name_match.group(2)}"
-        else:
-            clean_t = re.sub(r'\s*-\s*[A-Za-z0-9\.]+$', '', title).strip()
-            name = clean_t if clean_t else "Fallen Emergency Hero"
+        # Clean Title (strip RSS source suffixes like | Nevada News | 2news.com - KTVN)
+        clean_title = re.sub(r'\s*(\||-)\s*(Nevada News|KTVN|2news\.com|Police1|Fox|CNN|ABC|CBS|NBC|AP|Reuters|News|com).*$', '', title, flags=re.IGNORECASE).strip()
+
+        # 1. Multi-Pattern Smart Name Extraction across full article text
+        name = None
+        name_patterns = [
+            r'\b(Officer|Deputy|Trooper|Detective|Sergeant|Captain|Lieutenant|Chief|Firefighter|Paramedic|K9|K-9)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)\b',
+            r'\b(identified as|identified the fallen officer as|named as|remembering|honoring)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)\b',
+            r'\b([A-Z][a-z]+\s+[A-Z][a-z]+),\s+(?:a\s+)?(?:\d{2}-year-old|\d{2}\s+years\s+old|veteran|police officer|deputy|firefighter)\b'
+        ]
+
+        for pat in name_patterns:
+            m = re.search(pat, combined)
+            if m:
+                if len(m.groups()) == 2 and m.group(1) in ["Officer", "Deputy", "Trooper", "Detective", "Sergeant", "Captain", "Lieutenant", "Chief", "Firefighter", "Paramedic", "K9", "K-9"]:
+                    name = f"{m.group(1)} {m.group(2)}"
+                else:
+                    name = m.group(m.lastindex)
+                break
+
+        if not name:
+            role_match = re.search(r'\b([A-Z][a-zA-Z\s]+(?:\bPolice|\bSheriff|\bMetro|\bFire|\bEMS|\bHighway Patrol))\s+(officer|deputy|trooper|firefighter|paramedic|captain|detective)\b', clean_title, re.IGNORECASE)
+            if role_match:
+                name = f"{role_match.group(1).title()} {role_match.group(2).title()}"
+            else:
+                name = clean_title if clean_title else "Fallen Emergency Hero"
 
         # 2. Smart Agency Extraction
-        agency_match = re.search(r'\b([A-Z][a-zA-Z\s]+(Police|Sheriff|Fire|EMS|State Police|Highway Patrol|Department|Dept|PD))\b', title + " " + text)
+        agency_match = re.search(r'\b([A-Z][a-zA-Z\s]{2,30}(?:Police|Sheriff|Fire|EMS|State Police|Highway Patrol|Department|Dept|PD|Metro))\b', combined, re.IGNORECASE)
         if agency_match:
-            agency = agency_match.group(1).strip()
+            ag = agency_match.group(1).strip().title()
+            if not ag.lower().endswith(("department", "dept", "office", "police", "fire", "ems", "patrol")):
+                ag += " Department"
+            agency = ag
         elif "las vegas" in lower:
             agency = "Las Vegas Metropolitan Police Department"
+        elif "police" in lower:
+            agency = "Law Enforcement Department"
+        elif "fire" in lower:
+            agency = "Fire & Rescue Department"
         else:
             agency = "Emergency Services Department"
 
         # 3. Date of Death / EOW
-        date_match = re.search(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s+\d{4})?\b', title + " " + text, re.IGNORECASE)
+        date_match = re.search(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s+\d{4})?\b', combined, re.IGNORECASE)
         if date_match:
             eow_date = date_match.group(0)
         else:

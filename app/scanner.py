@@ -31,20 +31,35 @@ RSS_FEEDS = [
 
 
 async def scrape_full_article_content(url: str) -> str:
-    """Fetches full news article webpage content to extract cause of death & family details."""
+    """Fetches full news article webpage content, following Google News redirects to actual news outlet pages."""
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5"
     }
     try:
-        async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(total=8)) as session:
+        async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(total=10)) as session:
             async with session.get(url, allow_redirects=True) as resp:
                 if resp.status == 200:
                     html = await resp.text()
+
+                    # Check if Google News returned a meta refresh redirect to real news outlet
+                    meta_match = re.search(r'<meta[^>]+http-equiv=["\']refresh["\'][^>]+url=["\']?(https?://[^"\'>\s]+)', html, re.IGNORECASE)
+                    if meta_match:
+                        target_url = meta_match.group(1)
+                        try:
+                            async with session.get(target_url, allow_redirects=True) as target_resp:
+                                if target_resp.status == 200:
+                                    html = await target_resp.text()
+                        except Exception:
+                            pass
+
+                    # Strip scripts, styles, and extract text paragraphs
                     text = re.sub(r'<script.*?>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
                     text = re.sub(r'<style.*?>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
                     text = re.sub(r'<[^>]+>', ' ', text)
                     text = re.sub(r'\s+', ' ', text).strip()
-                    return text[:4000]
+                    return text[:6000]
     except Exception as e:
         logger.warning(f"Could not scrape full article URL {url}: {e}")
     return ""
