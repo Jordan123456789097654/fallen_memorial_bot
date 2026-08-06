@@ -23,6 +23,8 @@ RSS_FEEDS = [
     "https://news.google.com/rss/search?q=firefighter+dies+line+of+duty&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=paramedic+killed+duty&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=police+k9+killed&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=deputy+killed+line+of+duty&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=trooper+killed+line+of+duty&hl=en-US&gl=US&ceid=US:en",
 ]
 
 
