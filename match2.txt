@@ -1,0 +1,13 @@
+70:    cause_of_death: Optional[str] = None
+
+524:    cause_text = record.summary or "Line-of-Duty Ultimate Sacrifice in Protection of the Public"
+
+525:    if len(cause_text) > 160:
+
+526:        cause_text = cause_text[:160] + "..."
+
+674:        .cause-duty-box {{
+
+815:            <div class="cause-duty-box">✝ Duty Details & Sacrifice: {cause_text}</div>
+
+903:        cause_of_death=payload.cause_of_death,

@@ -346,6 +346,14 @@
               <label>End of Watch / Date of Death</label>
               <input type="text" id="mDateDeath" placeholder="e.g. August 5, 2026">
             </div>
+            <div class="form-group">
+              <label>✝️ Cause of Duty Death (Manual Input)</label>
+              <input type="text" id="mCauseDeath" placeholder="e.g. Struck by fleeing suspect vehicle while deploying tire deflation device">
+            </div>
+            <div class="form-group full">
+              <label>💐 Surviving Family Info (Manual Input)</label>
+              <input type="text" id="mSurvivingFamily" placeholder="e.g. Survived by wife Sarah and two children">
+            </div>
             <div class="form-group full">
               <label>Incident Summary & Memorial Bio *</label>
               <textarea id="mSummary" rows="3" placeholder="Enter detailed incident bio and summary of duty..." required></textarea>
@@ -373,7 +381,10 @@
       <div class="card-panel">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <h3>🚨 Pending Draft Review Queue</h3>
-          <button class="action-btn btn-approve" style="padding: 0.75rem 1.25rem;" onclick="bulkApprovePending()">⚡ Bulk Approve All Pending Drafts</button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="action-btn btn-approve" style="padding: 0.75rem 1.25rem;" onclick="bulkApprovePending()">⚡ Bulk Approve All Pending</button>
+            <button class="action-btn btn-reject" style="padding: 0.75rem 1.25rem;" onclick="bulkRejectPending()">🚫 Mass Deny All Pending</button>
+          </div>
         </div>
         <div class="table-container">
           <table>
@@ -539,6 +550,8 @@
         agency: document.getElementById('mAgency').value,
         category: document.getElementById('mCategory').value,
         date_of_death: document.getElementById('mDateDeath').value,
+        cause_of_death: document.getElementById('mCauseDeath').value,
+        surviving_family: document.getElementById('mSurvivingFamily').value,
         summary: document.getElementById('mSummary').value,
         bible_verse: document.getElementById('mVerse').value,
         bible_reference: document.getElementById('mRef').value,
@@ -682,21 +695,37 @@
     }
 
     async function bulkApprovePending() {
-      const pendingRecords = allAdminRecords.filter(r => r.status === 'PENDING');
-      if (pendingRecords.length === 0) {
-        alert('No pending drafts to approve!');
-        return;
+      if (!confirm('Are you sure you want to BULK APPROVE all pending draft records?')) return;
+      try {
+        const headers = { 'X-Admin-Password': staffPass };
+        const res = await fetch('/api/admin/approve-all', { method: 'POST', headers });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ Bulk Approved ${data.count} pending draft records!`);
+          loadAllData();
+        } else {
+          alert('Failed to execute bulk approval.');
+        }
+      } catch (err) {
+        alert('Bulk approve request error!');
       }
-      if (!confirm(`Approve all ${pendingRecords.length} pending draft memorial records?`)) return;
+    }
 
-      for (const r of pendingRecords) {
-        await fetch(`/api/admin/approve/${r.id}`, {
-          method: 'POST',
-          headers: { 'X-Admin-Password': staffPass }
-        });
+    async function bulkRejectPending() {
+      if (!confirm('Are you sure you want to MASS DENY / REJECT all pending draft records?')) return;
+      try {
+        const headers = { 'X-Admin-Password': staffPass };
+        const res = await fetch('/api/admin/reject-all', { method: 'POST', headers });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`🚫 Mass Denied ${data.count} pending draft records!`);
+          loadAllData();
+        } else {
+          alert('Failed to execute Mass Deny.');
+        }
+      } catch (err) {
+        alert('Mass Deny request error!');
       }
-      alert(`✅ Successfully approved all ${pendingRecords.length} pending draft records!`);
-      loadAllData();
     }
 
     async function approveRecord(id) {

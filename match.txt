@@ -1,0 +1,27 @@
+30:class CondolenceCreate(BaseModel):
+
+35:class FamilyClaimCreate(BaseModel):
+
+64:class CustomMemorialCreate(BaseModel):
+
+100:        bot_task = asyncio.create_task(bot.start(settings.DISCORD_BOT_TOKEN))
+
+436:        pub_date = r.created_at.strftime("%a, %d %b %Y %H:%M:%S GMT") if r.created_at else ""
+
+848:async def submit_family_claim(id: int, payload: FamilyClaimCreate, db: Session = Depends(get_db)):
+
+874:@app.post("/api/admin/memorials/custom", tags=["Staff Admin Portal"])
+
+875:async def create_custom_memorial(
+
+876:    payload: CustomMemorialCreate,
+
+886:    art_url = payload.article_url or f"https://memorial.custom/entry/{int(time.time())}"
+
+930:    return {"status": "created", "broadcasted": payload.auto_approve, "record": record.to_dict()}
+
+1088:            CandleLog.created_at >= cutoff
+
+1116:async def post_condolence(id: int, payload: CondolenceCreate, db: Session = Depends(get_db)):
+
+1165:    return {"status": "created", "subscription": sub.to_dict()}

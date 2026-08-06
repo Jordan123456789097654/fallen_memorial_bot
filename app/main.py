@@ -67,6 +67,8 @@ class CustomMemorialCreate(BaseModel):
     category: str = "OTHER"
     date_of_incident: Optional[str] = None
     date_of_death: Optional[str] = None
+    cause_of_death: Optional[str] = None
+    surviving_family: Optional[str] = None
     summary: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -519,9 +521,9 @@ async def generate_tribute_certificate(
     dir_name = director.strip() if director else default_dir
     d_title = dir_title.strip() if dir_title else default_dir_title
 
-    cause_text = record.summary or "Line-of-Duty Ultimate Sacrifice in Protection of the Public"
-    if len(cause_text) > 160:
-        cause_text = cause_text[:160] + "..."
+    cause_text = record.cause_of_death if record.cause_of_death else (record.summary or "Line-of-Duty Ultimate Sacrifice in Protection of the Public")
+    if len(cause_text) > 180:
+        cause_text = cause_text[:180] + "..."
 
     cert_html = f"""
     <!DOCTYPE html>
@@ -898,6 +900,8 @@ async def create_custom_memorial(
         category=cat_enum,
         date_of_incident=payload.date_of_incident,
         date_of_death=payload.date_of_death or "End of Watch",
+        cause_of_death=payload.cause_of_death,
+        surviving_family=payload.surviving_family,
         summary=payload.summary or f"Official memorial tribute for {payload.name}.",
         nleomf_verified=ver_res.get("nleomf_verified", False),
         odmp_verified=ver_res.get("odmp_verified", False),
@@ -996,10 +1000,36 @@ async def admin_delete(id: int, auth: str = Depends(verify_staff_password), db: 
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found")
-
     db.delete(record)
     db.commit()
     return {"status": "deleted", "id": id}
+
+
+@app.post("/api/admin/approve-all", tags=["Staff Admin Portal"])
+async def admin_approve_all(auth: str = Depends(verify_staff_password), db: Session = Depends(get_db)):
+    """Bulk approves all pending draft records."""
+    pending_records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).all()
+    count = 0
+    for record in pending_records:
+        record.status = ApprovalStatus.APPROVED
+        count += 1
+        await post_approved_memorial(bot, record)
+    db.commit()
+    logger.info(f"Staff Admin bulk approved {count} pending records.")
+    return {"status": "success", "count": count, "message": f"Approved {count} pending draft records."}
+
+
+@app.post("/api/admin/reject-all", tags=["Staff Admin Portal"])
+async def admin_reject_all(auth: str = Depends(verify_staff_password), db: Session = Depends(get_db)):
+    """Mass denies / rejects all pending draft records."""
+    pending_records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).all()
+    count = 0
+    for record in pending_records:
+        record.status = ApprovalStatus.REJECTED
+        count += 1
+    db.commit()
+    logger.info(f"Staff Admin mass denied {count} pending records.")
+    return {"status": "success", "count": count, "message": f"Mass denied {count} pending draft records."}
 
 
 @app.get("/api/status", tags=["System Health"])

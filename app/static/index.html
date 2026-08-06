@@ -703,8 +703,43 @@
     function openDrawer(id) {
       const rec = wallRecords.find(r => r.id === id);
       if (!rec) return;
-      document.getElementById('drawerHeader').innerHTML = `<h2 style="color: var(--gold);">${rec.name}</h2><p style="color: var(--muted);">${rec.agency}</p>`;
-      document.getElementById('drawerBody').innerHTML = `<p style="white-space: pre-line;">${rec.ai_memorial_text || rec.summary}</p>`;
+
+      let causeHtml = '';
+      if (rec.cause_of_death) {
+        causeHtml = `
+          <div style="background: rgba(229, 192, 123, 0.12); border-left: 4px solid var(--gold); padding: 0.9rem 1.15rem; border-radius: 12px; margin-bottom: 1.25rem;">
+            <strong style="color: var(--gold); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">✝️ Cause of Duty Death</strong>
+            <p style="color: #f1f5f9; margin-top: 0.3rem; font-weight: 600; font-size: 0.95rem;">${rec.cause_of_death}</p>
+          </div>
+        `;
+      }
+
+      let familyHtml = '';
+      if (rec.surviving_family) {
+        familyHtml = `
+          <div style="background: rgba(46, 160, 67, 0.12); border-left: 4px solid #2ea043; padding: 0.9rem 1.15rem; border-radius: 12px; margin-bottom: 1.25rem;">
+            <strong style="color: #56d364; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">💐 Surviving Family</strong>
+            <p style="color: #f1f5f9; margin-top: 0.3rem; font-weight: 600; font-size: 0.95rem;">${rec.surviving_family}</p>
+          </div>
+        `;
+      }
+
+      document.getElementById('drawerHeader').innerHTML = `
+        <h2 style="color: var(--gold); margin-bottom: 0.25rem; font-size: 1.6rem;">${rec.name}</h2>
+        <p style="color: var(--muted); font-size: 1rem; margin-bottom: 1rem;">${rec.agency}</p>
+      `;
+
+      document.getElementById('drawerBody').innerHTML = `
+        ${causeHtml}
+        ${familyHtml}
+        <div style="color: #cbd5e0; line-height: 1.8; font-size: 0.98rem; white-space: pre-line; margin-bottom: 1.5rem;">
+          ${rec.ai_memorial_text || rec.summary}
+        </div>
+        <div style="margin-top: 1.5rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.25rem;">
+          <a href="/responders/${rec.id}/certificate" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #e5c07b, #c69b4e); color: #000; font-weight: 800; padding: 0.75rem 1.5rem; border-radius: 30px; text-decoration: none;">📜 View Official Line-of-Duty Certificate</a>
+        </div>
+      `;
+
       document.getElementById('drawerModal').classList.add('active');
     }
 

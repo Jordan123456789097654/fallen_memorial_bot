@@ -450,6 +450,25 @@ def setup_commands(bot: discord.Client):
         finally:
             db.close()
 
+    @bot.tree.command(name="rejectall", description="[Admin] Mass deny / reject all pending draft records.")
+    async def rejectall_cmd(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        db: Session = SessionLocal()
+        try:
+            if not check_admin_permission(interaction, db):
+                await interaction.followup.send("❌ You do not have permission to execute this admin command.", ephemeral=True)
+                return
+
+            pending_records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).all()
+            count = 0
+            for record in pending_records:
+                record.status = ApprovalStatus.REJECTED
+                count += 1
+            db.commit()
+            await interaction.followup.send(f"🚫 **Mass Deny Executed:** Denied {count} pending draft records.", ephemeral=True)
+        finally:
+            db.close()
+
     @bot.tree.command(name="help", description="Show full bot command manual and guide.")
     async def help_cmd(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=False)
