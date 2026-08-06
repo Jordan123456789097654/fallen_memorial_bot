@@ -49,7 +49,9 @@ def run_migrations():
         ("responder_records", "odmp_verified", "BOOLEAN DEFAULT FALSE"),
         ("responder_records", "fire_hero_verified", "BOOLEAN DEFAULT FALSE"),
         ("responder_records", "unit_awards", "VARCHAR(500)"),
-        ("responder_records", "verification_badge", "VARCHAR(100) DEFAULT 'VERIFIED_NATIONAL_HONOR_ROLL'")
+        ("responder_records", "verification_badge", "VARCHAR(100) DEFAULT 'VERIFIED_NATIONAL_HONOR_ROLL'"),
+        ("responder_records", "cause_of_death", "VARCHAR(500)"),
+        ("responder_records", "surviving_family", "VARCHAR(500)")
     ]
 
     for table_name, col_name, col_type in cols_to_add:
