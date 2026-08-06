@@ -156,7 +156,6 @@ async def serve_admin_portal():
 
 @app.get("/api/memorials", tags=["Public Memorials"])
 async def get_public_memorials(db: Session = Depends(get_db)):
-    """Returns all approved memorial records for public Web Wall display."""
     records = (
         db.query(ResponderRecord)
         .filter(ResponderRecord.status == ApprovalStatus.APPROVED)
@@ -217,10 +216,18 @@ async def get_rss_webfeed(db: Session = Depends(get_db)):
 
 
 @app.get("/responders/{id}/certificate", tags=["Printable Certificates"])
-async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
+async def generate_tribute_certificate(
+    id: int,
+    chaplain: Optional[str] = "Rev. Joseph Miller",
+    director: Optional[str] = "Chief Marcus Vance",
+    db: Session = Depends(get_db)
+):
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
+
+    chap_name = chaplain.strip() if chaplain else "Rev. Joseph Miller"
+    dir_name = director.strip() if director else "Chief Marcus Vance"
 
     cert_html = f"""
     <!DOCTYPE html>
@@ -252,74 +259,78 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
           background: rgba(18, 23, 33, 0.95);
           border: 1px solid #e5c07b;
           border-radius: 30px;
-          padding: 0.75rem 1.75rem;
+          padding: 0.75rem 1.5rem;
           display: flex;
-          gap: 1rem;
+          gap: 0.85rem;
           align-items: center;
           box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
           z-index: 9999;
           backdrop-filter: blur(10px);
         }}
 
+        .print-bar input {{
+          padding: 0.4rem 0.75rem;
+          border-radius: 8px;
+          border: 1px solid #e5c07b;
+          background: #06080c;
+          color: #fff;
+          font-size: 0.85rem;
+          outline: none;
+          width: 150px;
+        }}
+
         .print-btn {{
           background: #e5c07b;
           color: #000;
           border: none;
-          padding: 0.6rem 1.3rem;
+          padding: 0.55rem 1.1rem;
           border-radius: 20px;
           font-weight: 700;
           font-family: sans-serif;
           cursor: pointer;
-          font-size: 0.9rem;
-          transition: all 0.2s ease;
+          font-size: 0.85rem;
         }}
-        .print-btn:hover {{ background: #fff; transform: scale(1.05); }}
+
         .download-btn {{
           background: #1f6feb;
           color: #fff;
           border: none;
-          padding: 0.6rem 1.3rem;
+          padding: 0.55rem 1.1rem;
           border-radius: 20px;
           font-weight: 700;
           font-family: sans-serif;
           cursor: pointer;
-          font-size: 0.9rem;
-          transition: all 0.2s ease;
+          font-size: 0.85rem;
         }}
-        .download-btn:hover {{ background: #4d93ff; transform: scale(1.05); }}
 
         /* Certificate Paper Sheet */
         .cert-container {{
-          width: 950px;
-          height: 670px;
+          width: 960px;
+          min-height: 660px;
           background: #fdfbf7;
-          background-image: 
-            radial-gradient(circle at 50% 50%, #fffdf9 0%, #f7f2e6 100%);
+          background-image: radial-gradient(circle at 50% 50%, #fffdf9 0%, #f7f2e6 100%);
           border: 12px double #b8860b;
-          box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 100px rgba(184, 134, 11, 0.08);
-          padding: 2.5rem;
+          box-shadow: 0 0 40px rgba(0,0,0,0.8);
+          padding: 2.25rem;
           margin-top: 4rem;
           position: relative;
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
           text-align: center;
         }}
 
         .cert-inner-border {{
           border: 2px solid #b8860b;
           height: 100%;
-          padding: 2rem 3rem;
-          position: relative;
+          padding: 1.85rem 2.5rem;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
         }}
 
-        /* Header Calligraphy */
         .cert-header h1 {{
           font-family: 'Cinzel', serif;
-          font-size: 2.2rem;
+          font-size: 2.1rem;
           color: #1a2332;
           letter-spacing: 4px;
           text-transform: uppercase;
@@ -328,78 +339,76 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
 
         .cert-header h2 {{
           font-family: 'Cinzel', serif;
-          font-size: 1.1rem;
+          font-size: 1.05rem;
           color: #b8860b;
           letter-spacing: 2px;
           text-transform: uppercase;
-          margin-top: 0.3rem;
+          margin-top: 0.25rem;
         }}
 
         .attest-line {{
-          font-size: 1.05rem;
+          font-size: 1rem;
           color: #4a4a4a;
           font-style: italic;
-          margin-top: 1.25rem;
+          margin-top: 1rem;
         }}
 
-        /* Recipient Name */
         .recipient-name {{
           font-family: 'Cinzel', serif;
-          font-size: 2.5rem;
+          font-size: 2.4rem;
           color: #b8860b;
           font-weight: 700;
-          margin: 1rem 0 0.5rem;
+          margin: 0.75rem 0 0.4rem;
           border-bottom: 2px solid #b8860b;
           display: inline-block;
-          padding-bottom: 0.25rem;
+          padding-bottom: 0.2rem;
         }}
 
         .agency-line {{
-          font-size: 1.2rem;
+          font-size: 1.15rem;
           color: #222;
-          line-height: 1.6;
+          line-height: 1.5;
         }}
 
         .eow-badge {{
-          font-size: 1.1rem;
+          font-size: 1.05rem;
           font-weight: 700;
           color: #8b0000;
-          margin-top: 0.75rem;
+          margin-top: 0.6rem;
         }}
 
-        /* Scripture Box */
         .scripture-box {{
           font-style: italic;
-          font-size: 1rem;
+          font-size: 0.95rem;
           color: #333;
           background: rgba(184, 134, 11, 0.06);
           border-left: 3px solid #b8860b;
-          padding: 0.75rem 1.25rem;
-          margin: 1rem auto;
-          max-width: 680px;
+          padding: 0.6rem 1.1rem;
+          margin: 0.85rem auto;
+          max-width: 660px;
         }}
 
-        /* Footer & Signatures */
         .cert-footer {{
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-top: 1.5rem;
-          padding-top: 1rem;
+          margin-top: 1.25rem;
+          padding-top: 0.85rem;
           border-top: 1px solid #d4af37;
         }}
 
         .sig-block {{
           text-align: center;
-          width: 220px;
+          width: 230px;
         }}
 
         .sig-line {{
           font-family: 'Alex Brush', cursive;
-          font-size: 2rem;
+          font-size: 1.9rem;
           color: #0d1b2a;
           border-bottom: 1px solid #777;
-          margin-bottom: 0.3rem;
+          margin-bottom: 0.2rem;
+          min-height: 2.4rem;
         }}
 
         .sig-title {{
@@ -408,15 +417,15 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
           letter-spacing: 1px;
           color: #555;
           font-family: sans-serif;
+          font-weight: 600;
         }}
 
-        /* Official Gold Seal Badge */
         .gold-seal {{
-          width: 100px;
-          height: 100px;
+          width: 90px;
+          height: 90px;
           border-radius: 50%;
           background: radial-gradient(ellipse at center, #ffd700 0%, #b8860b 100%);
-          border: 4px double #ffffff;
+          border: 3px double #ffffff;
           box-shadow: 0 0 15px rgba(184, 134, 11, 0.6);
           display: flex;
           flex-direction: column;
@@ -424,21 +433,19 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
           align-items: center;
           color: #000;
           font-family: 'Cinzel', serif;
-          font-size: 0.6rem;
+          font-size: 0.55rem;
           font-weight: 900;
           text-align: center;
-          padding: 0.5rem;
+          padding: 0.4rem;
           text-transform: uppercase;
-          letter-spacing: 1px;
         }}
 
-        .serial-num {{
+        .serial-bar {{
+          margin-top: 0.75rem;
           font-size: 0.75rem;
-          color: #777;
+          color: #666;
           font-family: monospace;
-          position: absolute;
-          bottom: 0.75rem;
-          right: 3rem;
+          text-align: right;
         }}
 
         @media print {{
@@ -448,23 +455,36 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
             margin-top: 0;
             box-shadow: none;
             width: 100%;
-            height: 100vh;
             border-width: 8px;
           }}
         }}
       </style>
     </head>
+    <body>
+
       <div class="print-bar">
-        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.9rem;">📜 Official Tribute Certificate</span>
-        <button class="download-btn" onclick="downloadPDF()">📥 Download PDF File</button>
-        <button class="print-btn" onclick="window.print()">🖨️ Print Certificate</button>
+        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Chaplain:</span>
+        <input type="text" id="chapInput" value="{chap_name}" oninput="updateSignatures()" placeholder="Chaplain Name">
+
+        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Director:</span>
+        <input type="text" id="dirInput" value="{dir_name}" oninput="updateSignatures()" placeholder="Director Name">
+
+        <button class="download-btn" onclick="downloadPDF()">📥 Download PDF</button>
+        <button class="print-btn" onclick="window.print()">🖨️ Print</button>
       </div>
 
       <script>
+        function updateSignatures() {{
+          const chap = document.getElementById('chapInput').value || 'Rev. Joseph Miller';
+          const dir = document.getElementById('dirInput').value || 'Chief Marcus Vance';
+          document.getElementById('sigChaplain').innerText = chap;
+          document.getElementById('sigDirector').innerText = dir;
+        }}
+
         function downloadPDF() {{
           const element = document.getElementById('certDoc');
           const opt = {{
-            margin:       0.2,
+            margin:       0.15,
             filename:     'Certificate_{record.name.replace(" ", "_")}.pdf',
             image:        {{ type: 'jpeg', quality: 0.98 }},
             html2canvas:  {{ scale: 2, useCORS: true }},
@@ -494,23 +514,26 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
 
           {f'<div class="scripture-box">"{record.bible_verse}"<br>— <strong>{record.bible_reference}</strong></div>' if record.bible_verse else ''}
 
-          <div class="cert-footer">
-            <div class="sig-block">
-              <div class="sig-line">Arthur Pendelton</div>
-              <div class="sig-title">National Chaplain General</div>
+          <div>
+            <div class="cert-footer">
+              <div class="sig-block">
+                <div class="sig-line" id="sigChaplain">{chap_name}</div>
+                <div class="sig-title">National Chaplain General</div>
+              </div>
+
+              <div class="gold-seal">
+                ⭐<br>OFFICIAL<br>HONOR ROLL<br>SEAL
+              </div>
+
+              <div class="sig-block">
+                <div class="sig-line" id="sigDirector">{dir_name}</div>
+                <div class="sig-title">Director of Registry</div>
+              </div>
             </div>
 
-            <div class="gold-seal">
-              ⭐<br>OFFICIAL<br>HONOR ROLL<br>SEAL
-            </div>
-
-            <div class="sig-block">
-              <div class="sig-line">Marcus Vance</div>
-              <div class="sig-title">Director of Registry</div>
-            </div>
+            <div class="serial-bar">Official Certificate Serial No. NFRM-2026-#{record.id}</div>
           </div>
 
-          <div class="serial-num">Official Certificate Serial No. NFRM-2026-#{record.id}</div>
         </div>
       </div>
 
