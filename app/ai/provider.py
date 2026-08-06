@@ -1,6 +1,5 @@
 """
 Abstract Base Class for AI Provider Interface.
-Includes contracts for basic extraction, memorial text, eulogies, and incident timelines.
 """
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
@@ -21,10 +20,10 @@ class AIProvider(ABC):
 
     @abstractmethod
     async def generate_eulogy(self, record_data: Dict[str, Any]) -> str:
-        """Generates a comprehensive, formal eulogy speech draft for a fallen responder."""
+        """Generates a formal eulogy speech draft for a fallen responder."""
         pass
 
     @abstractmethod
     async def extract_timeline(self, raw_text: str) -> List[Dict[str, str]]:
-        """Extracts a chronological timeline of key incident events from the raw article text."""
+        """Extracts a chronological timeline of key incident events."""
         pass

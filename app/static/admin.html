@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Control Center | Fallen Officer Memorial Intelligence System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #090c10;
+      --sidebar-bg: #121721;
+      --card-bg: rgba(22, 28, 38, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --gold: #e5c07b;
+      --gold-glow: rgba(229, 192, 123, 0.25);
+      --green: #238636;
+      --red: #da3633;
+      --blue: #1f6feb;
+      --purple: #8957e5;
+      --text: #f0f6fc;
+      --muted: #8b949e;
+      --font-serif: 'Cinzel', serif;
+      --font-sans: 'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-main);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(30, 42, 66, 0.4) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(50, 20, 60, 0.3) 0px, transparent 50%);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Auth Modal */
+    .auth-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(12px);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 9999;
+    }
+
+    .auth-box {
+      background: #121620;
+      border: 1px solid var(--gold);
+      box-shadow: 0 0 30px var(--gold-glow);
+      border-radius: 20px;
+      padding: 2.5rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .auth-box h2 { font-family: var(--font-serif); color: var(--gold); margin-bottom: 0.5rem; }
+    .auth-box p { color: var(--muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+    .auth-box input {
+      width: 100%;
+      padding: 0.9rem;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: #06080c;
+      color: #fff;
+      margin-bottom: 1.25rem;
+      outline: none;
+      font-size: 1rem;
+      text-align: center;
+    }
+
+    /* Sidebar Navigation */
+    aside {
+      width: 280px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--card-border);
+      padding: 2rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 1.5rem;
+    }
+
+    .brand h2 { font-family: var(--font-serif); font-size: 1.15rem; color: var(--gold); letter-spacing: 1px; }
+
+    .nav-list { display: flex; flex-direction: column; gap: 0.5rem; list-style: none; }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.95rem;
+      width: 100%;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover, .nav-btn.active {
+      background: rgba(229, 192, 123, 0.12);
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    /* Main Content */
+    main {
+      flex: 1;
+      padding: 2rem 2.5rem;
+      overflow-y: auto;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .header-title h1 { font-family: var(--font-serif); color: var(--gold); font-size: 1.8rem; }
+    .header-title p { color: var(--muted); font-size: 0.95rem; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .badge-ok { background: rgba(35, 134, 54, 0.2); color: #56d364; border: 1px solid rgba(35, 134, 54, 0.4); }
+    .badge-maint { background: rgba(218, 54, 51, 0.2); color: #ff7b72; border: 1px solid rgba(218, 54, 51, 0.4); }
+
+    /* Stats Cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .metric-card h4 { color: var(--muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; margin-bottom: 0.5rem; }
+    .metric-card .val { font-size: 2rem; font-weight: 700; color: var(--text); }
+
+    /* Tab Content Panels */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Form Layout */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .form-group.full { grid-column: 1 / -1; }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 0.85rem;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: #06080c;
+      color: #fff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--gold);
+    }
+
+    /* Tables & Action Cards */
+    .card-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      backdrop-filter: blur(10px);
+      margin-bottom: 2rem;
+    }
+
+    .table-container { width: 100%; overflow-x: auto; margin-top: 1rem; }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 1rem; border-bottom: 1px solid var(--card-border); font-size: 0.9rem; }
+    th { color: var(--gold); font-weight: 600; }
+
+    .action-btn {
+      padding: 0.55rem 1.1rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-right: 0.3rem;
+    }
+
+    .btn-approve { background: var(--green); color: #fff; }
+    .btn-reject { background: var(--red); color: #fff; }
+    .btn-edit { background: var(--blue); color: #fff; }
+    .btn-scan { background: var(--gold); color: #000; font-weight: 700; }
+    .btn-maint { background: var(--purple); color: #fff; }
+
+    .action-btn:hover { opacity: 0.85; transform: scale(1.02); }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Modal -->
+  <div class="auth-overlay" id="authModal">
+    <div class="auth-box">
+      <h2>🔒 Staff Control Center</h2>
+      <p>Enter your administrative staff password to access the control panel.</p>
+      <input type="password" id="staffPassInput" placeholder="Staff Admin Password">
+      <button class="action-btn btn-scan" style="width: 100%; padding: 0.85rem;" onclick="loginStaff()">Authenticate Portal</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside>
+    <div>
+      <div class="brand">
+        <h2>🛡️ Memorial Admin</h2>
+      </div>
+      <ul class="nav-list">
+        <li><button class="nav-btn active" onclick="showTab('tabDashboard', this)">📊 Analytics Overview</button></li>
+        <li><button class="nav-btn" onclick="showTab('tabCustom', this)">➕ Create Custom Memorial</button></li>
+        <li><button class="nav-btn" onclick="showTab('tabPending', this)">🚨 Pending Review Queue</button></li>
+        <li><button class="nav-btn" onclick="showTab('tabApproved', this)">📜 Approved Wall Manager</button></li>
+        <li><button class="nav-btn" onclick="showTab('tabMaintenance', this)">🛠️ System Maintenance</button></li>
+        <li><button class="nav-btn" onclick="showTab('tabServers', this)">⚙️ Server & Webhooks</button></li>
+      </ul>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--muted); text-align: center;">
+      System v1.0.0 • Render Free Web App
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main>
+    <div class="header-bar">
+      <div class="header-title">
+        <h1>Staff Control Dashboard</h1>
+        <p>Operational intelligence, custom memorial creation, and multi-server management.</p>
+      </div>
+      <div>
+        <span class="status-badge badge-ok" id="maintBadge">● Operational</span>
+      </div>
+    </div>
+
+    <!-- Live Metrics Grid -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <h4>Total Memorials</h4>
+        <div class="val" id="valTotal">0</div>
+      </div>
+      <div class="metric-card">
+        <h4>Pending Review</h4>
+        <div class="val" id="valPending" style="color: var(--gold);">0</div>
+      </div>
+      <div class="metric-card">
+        <h4>Approved & Published</h4>
+        <div class="val" id="valApproved" style="color: #56d364;">0</div>
+      </div>
+      <div class="metric-card">
+        <h4>Connected Guilds</h4>
+        <div class="val" id="valGuilds" style="color: var(--blue);">0</div>
+      </div>
+    </div>
+
+    <!-- TAB 1: Dashboard Analytics -->
+    <div class="panel active" id="tabDashboard">
+      <div class="card-panel">
+        <h3>📊 Intelligence System Status</h3>
+        <p style="color: var(--muted); margin-top: 0.5rem;">FastAPI host and discord.py Bot are running concurrently within the same event loop.</p>
+        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+          <button class="action-btn btn-scan" onclick="triggerNewsScan()">🔍 Trigger Manual News Scan</button>
+          <button class="action-btn btn-maint" onclick="toggleMaintenance()">🛠️ Toggle Maintenance Mode</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Create Custom Memorial Form -->
+    <div class="panel" id="tabCustom">
+      <div class="card-panel">
+        <h3>➕ Create Custom Memorial & Broadcast</h3>
+        <p style="color: var(--muted); margin-bottom: 1.5rem;">Fill out responder details to publish directly to the Web Wall and broadcast across Discord & Webhooks.</p>
+        
+        <form onsubmit="submitCustomMemorial(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Responder Name *</label>
+              <input type="text" id="mName" placeholder="e.g. Officer Michael Johnson" required>
+            </div>
+            <div class="form-group">
+              <label>Agency / Department *</label>
+              <input type="text" id="mAgency" placeholder="e.g. Chicago Police Department" required>
+            </div>
+            <div class="form-group">
+              <label>Service Category *</label>
+              <select id="mCategory" required>
+                <option value="LAW_ENFORCEMENT">Law Enforcement</option>
+                <option value="FIRE">Fire Service</option>
+                <option value="EMS">EMS & Paramedics</option>
+                <option value="RESCUE">Rescue Personnel</option>
+                <option value="K9">K9 Hero</option>
+                <option value="DISPATCH">911 Dispatcher</option>
+                <option value="OTHER">Other Responder</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>End of Watch / Date of Death</label>
+              <input type="text" id="mDateDeath" placeholder="e.g. August 5, 2026">
+            </div>
+            <div class="form-group full">
+              <label>Incident Summary & Memorial Bio *</label>
+              <textarea id="mSummary" rows="3" placeholder="Enter detailed incident bio and summary of duty..." required></textarea>
+            </div>
+            <div class="form-group">
+              <label>Scripture Verse (Optional)</label>
+              <input type="text" id="mVerse" placeholder="e.g. Greater love has no one than this...">
+            </div>
+            <div class="form-group">
+              <label>Scripture Reference (Optional)</label>
+              <input type="text" id="mRef" placeholder="e.g. John 15:13">
+            </div>
+            <div class="form-group full" style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+              <input type="checkbox" id="mAutoApprove" checked style="width: auto;">
+              <label for="mAutoApprove" style="text-transform: none; color: #fff;">🚀 Broadcast Immediately to Connected Discord Channels & Webhooks</label>
+            </div>
+          </div>
+          <button type="submit" class="action-btn btn-scan" style="width: 100%; margin-top: 1.5rem; padding: 1rem; font-size: 1rem;">🚀 Create & Broadcast Custom Memorial</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 3: Pending Queue -->
+    <div class="panel" id="tabPending">
+      <div class="card-panel">
+        <h3>🚨 Pending Draft Review Queue</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Agency</th>
+                <th>Category</th>
+                <th>Date / EOW</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pendingTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Approved Manager -->
+    <div class="panel" id="tabApproved">
+      <div class="card-panel">
+        <h3>📜 Approved Memorial Wall Records</h3>
+        <input type="text" id="adminSearch" placeholder="🔍 Search records by name or agency..." onkeyup="filterAdminRecords()" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff; margin-top: 1rem;">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Agency</th>
+                <th>Category</th>
+                <th>Candles Lit</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="approvedTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Maintenance & Controls -->
+    <div class="panel" id="tabMaintenance">
+      <div class="card-panel">
+        <h3>🛠️ Maintenance & System Controls</h3>
+        <p style="color: var(--muted); margin: 0.75rem 0 1.5rem;">Toggling Maintenance Mode will display a dignified maintenance message on `/wall` while keeping the `/admin` portal online.</p>
+        <button class="action-btn btn-maint" style="padding: 0.85rem 1.5rem;" onclick="toggleMaintenance()">Toggle Website Maintenance Mode</button>
+      </div>
+    </div>
+
+    <!-- TAB 6: Servers & Webhooks -->
+    <div class="panel" id="tabServers">
+      <div class="card-panel">
+        <h3>⚙️ Connected Servers & Webhook Subscriptions</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Guild Name</th>
+                <th>Guild ID</th>
+                <th>Approval Mode</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody id="serversTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let staffPass = '';
+    let allAdminRecords = [];
+
+    async function loginStaff() {
+      staffPass = document.getElementById('staffPassInput').value.trim();
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: staffPass })
+        });
+        if (res.ok) {
+          document.getElementById('authModal').style.display = 'none';
+          loadAllData();
+        } else {
+          alert('Invalid Staff Admin Password!');
+        }
+      } catch (err) {
+        alert('Authentication error!');
+      }
+    }
+
+    async function submitCustomMemorial(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('mName').value,
+        agency: document.getElementById('mAgency').value,
+        category: document.getElementById('mCategory').value,
+        date_of_death: document.getElementById('mDateDeath').value,
+        summary: document.getElementById('mSummary').value,
+        bible_verse: document.getElementById('mVerse').value,
+        bible_reference: document.getElementById('mRef').value,
+        auto_approve: document.getElementById('mAutoApprove').checked
+      };
+
+      try {
+        const res = await fetch('/api/admin/memorials/custom', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Password': staffPass
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          alert(`✅ Custom Memorial Created Successfully! ID #${data.record.id}`);
+          loadAllData();
+          showTab('tabApproved', document.querySelectorAll('.nav-btn')[3]);
+        } else {
+          alert('Failed to create custom memorial.');
+        }
+      } catch (err) {
+        alert('Custom memorial submission error!');
+      }
+    }
+
+    async function loadAllData() {
+      try {
+        const res = await fetch('/responders?api_key=memorial_secret_admin_key_2026');
+        if (res.ok) {
+          const data = await res.json();
+          allAdminRecords = data.records || [];
+          renderAllTables();
+        }
+
+        const statusRes = await fetch('/api/status');
+        if (statusRes.ok) {
+          const s = await statusRes.json();
+          document.getElementById('valTotal').innerText = s.database_stats.total_memorials;
+          document.getElementById('valPending').innerText = s.database_stats.pending_review;
+          document.getElementById('valApproved').innerText = s.database_stats.approved;
+          document.getElementById('valGuilds').innerText = s.database_stats.configured_servers;
+        }
+
+        const guildRes = await fetch('/guilds?api_key=memorial_secret_admin_key_2026');
+        if (guildRes.ok) {
+          const gData = await guildRes.json();
+          renderServersTable(gData.guilds || []);
+        }
+
+      } catch (err) {
+        console.error("Data load error:", err);
+      }
+    }
+
+    function renderAllTables() {
+      const pBody = document.getElementById('pendingTbody');
+      const aBody = document.getElementById('approvedTbody');
+      pBody.innerHTML = '';
+      aBody.innerHTML = '';
+
+      allAdminRecords.forEach(r => {
+        const row = document.createElement('tr');
+        if (r.status === 'PENDING') {
+          row.innerHTML = `
+            <td>#${r.id}</td>
+            <td><strong>${r.name}</strong></td>
+            <td>${r.agency}</td>
+            <td>${r.category}</td>
+            <td>${r.date_of_death || 'N/A'}</td>
+            <td>
+              <button class="action-btn btn-approve" onclick="approveRecord(${r.id})">Approve</button>
+              <button class="action-btn btn-reject" onclick="rejectRecord(${r.id})">Reject</button>
+            </td>
+          `;
+          pBody.appendChild(row);
+        } else if (r.status === 'APPROVED') {
+          row.innerHTML = `
+            <td>#${r.id}</td>
+            <td><strong>${r.name}</strong></td>
+            <td>${r.agency}</td>
+            <td>${r.category}</td>
+            <td>🕯️ ${r.candle_count || 0}</td>
+            <td>
+              <button class="action-btn btn-reject" onclick="deleteRecord(${r.id})">Delete</button>
+            </td>
+          `;
+          aBody.appendChild(row);
+        }
+      });
+    }
+
+    function renderServersTable(guilds) {
+      const sBody = document.getElementById('serversTbody');
+      sBody.innerHTML = '';
+      guilds.forEach(g => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><strong>${g.guild_name}</strong></td>
+          <td>${g.guild_id}</td>
+          <td><code>${g.approval_mode}</code></td>
+          <td>${g.category_name}</td>
+        `;
+        sBody.appendChild(row);
+      });
+    }
+
+    async function approveRecord(id) {
+      const res = await fetch(`/api/admin/approve/${id}`, {
+        method: 'POST',
+        headers: { 'X-Admin-Password': staffPass }
+      });
+      if (res.ok) {
+        alert(`Approved Memorial ID #${id}!`);
+        loadAllData();
+      }
+    }
+
+    async function rejectRecord(id) {
+      const res = await fetch(`/api/admin/reject/${id}`, {
+        method: 'POST',
+        headers: { 'X-Admin-Password': staffPass }
+      });
+      if (res.ok) {
+        alert(`Rejected Draft ID #${id}!`);
+        loadAllData();
+      }
+    }
+
+    async function deleteRecord(id) {
+      if (!confirm(`Delete Memorial ID #${id}?`)) return;
+      const res = await fetch(`/api/admin/responders/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Password': staffPass }
+      });
+      if (res.ok) {
+        alert(`Deleted Record #${id}`);
+        loadAllData();
+      }
+    }
+
+    async function triggerNewsScan() {
+      const res = await fetch('/scan', {
+        method: 'POST',
+        headers: { 'X-API-Key': 'memorial_secret_admin_key_2026' }
+      });
+      if (res.ok) {
+        alert('Manual news scan initiated in background.');
+      }
+    }
+
+    async function toggleMaintenance() {
+      const res = await fetch('/api/admin/maintenance', {
+        method: 'POST',
+        headers: { 'X-Admin-Password': staffPass }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const badge = document.getElementById('maintBadge');
+        if (data.maintenance_mode) {
+          badge.className = 'status-badge badge-maint';
+          badge.innerText = '● Maintenance Mode Active';
+        } else {
+          badge.className = 'status-badge badge-ok';
+          badge.innerText = '● Operational';
+        }
+        alert(`Maintenance Mode is now: ${data.maintenance_mode ? 'ENABLED' : 'DISABLED'}`);
+      }
+    }
+
+    function showTab(panelId, btn) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(panelId).classList.add('active');
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>

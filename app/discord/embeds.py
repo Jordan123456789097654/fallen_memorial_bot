@@ -1,6 +1,5 @@
 """
-Discord Embed Builder for Memorial Announcements, Eulogies, Stats, & Server Configs.
-Supports Specialized K9 fields, Virtual Candles counters, and EOW Anniversary Reminders.
+Discord Embed Builder for Rich, Detailed Memorial Announcements, Incident Reports, & Stats.
 """
 import discord
 from datetime import datetime
@@ -20,62 +19,85 @@ CATEGORY_COLORS = {
 
 def create_memorial_embed(record: ResponderRecord, custom_header: str = None) -> discord.Embed:
     """
-    Constructs a respectful Discord Embed for a fallen responder.
-    Supports K9 handler details, candle counters, and Sequential Memorial ID.
+    Constructs a rich, highly detailed Discord Embed for a fallen responder.
+    Includes agency profile, dates, AI tribute, scripture, K9 profile, candle stats, and sequential ID.
     """
     category_enum = record.category if isinstance(record.category, ResponderCategory) else ResponderCategory(record.category)
     color = CATEGORY_COLORS.get(category_enum, discord.Color.blue())
 
-    title_prefix = f"[{custom_header}] " if custom_header else ""
-    title = f"{title_prefix}In Memory of {record.name}"
+    title_prefix = f"[{custom_header}] " if custom_header else "🛡️ IN MEMORIAM: "
+    title = f"{title_prefix}{record.name}"
 
     embed = discord.Embed(
         title=title,
-        description=record.ai_memorial_text or record.summary or "In honor of faithful emergency service.",
+        description=(
+            f"**Dedicated Service & Line-of-Duty Sacrifice**\n"
+            f"> *\"{record.ai_memorial_text or record.summary or 'In solemn honor of courageous public service.'}\"*"
+        ),
         color=color,
         timestamp=datetime.utcnow()
     )
 
-    embed.add_field(name="🏛️ Agency", value=record.agency or "Emergency Services", inline=True)
-    embed.add_field(name="🛡️ Category", value=category_enum.value.replace("_", " ").title(), inline=True)
+    # Department & Unit Profile
+    embed.add_field(name="🏛️ Agency / Department", value=record.agency or "Emergency Services", inline=True)
+    embed.add_field(name="🛡️ Service Branch", value=category_enum.value.replace("_", " ").title(), inline=True)
 
     if record.date_of_death:
-        embed.add_field(name="🕯️ Date / EOW", value=record.date_of_death, inline=True)
+        embed.add_field(name="🕯️ End of Watch (EOW)", value=f"**{record.date_of_death}**", inline=True)
     elif record.date_of_incident:
-        embed.add_field(name="📅 Incident Date", value=record.date_of_incident, inline=True)
+        embed.add_field(name="📅 Date of Incident", value=record.date_of_incident, inline=True)
 
-    # Specialized K9 fields
+    # Incident Overview
+    if record.summary:
+        embed.add_field(name="📋 Summary of Duty & Incident", value=record.summary, inline=False)
+
+    # Specialized K9 Profile
     if category_enum == ResponderCategory.K9 or record.k9_handler_name:
         k9_info = ""
         if record.k9_handler_name:
-            k9_info += f"• **Handler:** {record.k9_handler_name}\n"
+            k9_info += f"• **Handler Name:** {record.k9_handler_name}\n"
         if record.k9_breed:
-            k9_info += f"• **Breed:** {record.k9_breed}\n"
+            k9_info += f"• **Canine Breed:** {record.k9_breed}\n"
         if record.service_years:
-            k9_info += f"• **Service Years:** {record.service_years}\n"
+            k9_info += f"• **Years of Service:** {record.service_years}\n"
         if record.unit_badge:
-            k9_info += f"• **Unit Badge:** {record.unit_badge}\n"
+            k9_info += f"• **K9 Unit Badge:** {record.unit_badge}\n"
         if k9_info:
-            embed.add_field(name="🐾 K9 Unit Profile", value=k9_info, inline=False)
+            embed.add_field(name="🐾 K9 Unit Badge & Handler Profile", value=k9_info, inline=False)
 
+    # Scripture Blessing
     if record.bible_verse and record.bible_reference:
         embed.add_field(
-            name="📖 Scripture Tribute",
+            name="📖 Scripture Tribute & Blessing",
             value=f"> *\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
             inline=False
         )
 
+    # Direct Links
     embed.add_field(
-        name="🔗 Source News Article",
-        value=f"[{record.article_title or 'Read Full Article'}]({record.article_url})",
+        name="🔗 Links & Resources",
+        value=f"🌐 [View on Web Wall](https://fallen-responder.onrender.com/wall) | 📰 [{record.article_title or 'Source News Article'}]({record.article_url})",
         inline=False
     )
 
-    candle_txt = f" | 🕯️ {record.candle_count} Candles Lit" if record.candle_count > 0 else ""
+    candle_str = f" | 🕯️ {record.candle_count} Candles Lit" if record.candle_count > 0 else ""
     embed.set_footer(
-        text=f"Sequential Memorial ID: #{record.id}{candle_txt} | Status: {record.status.value if hasattr(record.status, 'value') else record.status}"
+        text=f"Sequential Memorial ID: #{record.id}{candle_str} | Status: {record.status.value if hasattr(record.status, 'value') else record.status}"
     )
 
+    return embed
+
+
+def create_incident_report_embed(record: ResponderRecord, report_text: str) -> discord.Embed:
+    """Creates a detailed Line-of-Duty Incident Analysis Report embed."""
+    embed = discord.Embed(
+        title=f"📄 Line-of-Duty Incident Analysis Report — ID #{record.id}",
+        description=f"**Responder:** {record.name}\n**Agency:** {record.agency}\n**EOW:** {record.date_of_death or 'Line of Duty'}",
+        color=discord.Color.dark_blue(),
+        timestamp=datetime.utcnow()
+    )
+    embed.add_field(name="📋 AI Intelligence Analysis", value=report_text[:1024], inline=False)
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Fallen Officer Intelligence System")
     return embed
 
 
@@ -83,7 +105,6 @@ def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord
     """Creates an EOW Anniversary Remembrance Embed."""
     category_enum = record.category if isinstance(record.category, ResponderCategory) else ResponderCategory(record.category)
     color = CATEGORY_COLORS.get(category_enum, discord.Color.blue())
-
     year_str = f"{years_ago} Year{'s' if years_ago > 1 else ''} Ago Today" if years_ago > 0 else "Annual Anniversary"
 
     embed = discord.Embed(
@@ -110,8 +131,13 @@ def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord
 def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
     """Creates an admin review embed for pending approvals."""
     embed = discord.Embed(
-        title=f"🚨 [Pending Approval] Memorial ID #{record.id}",
-        description=f"**Name:** {record.name}\n**Agency:** {record.agency}\n**Category:** {record.category}\n\n**AI Memorial Draft:**\n{record.ai_memorial_text}",
+        title=f"🚨 [Pending Approval Review] Memorial ID #{record.id}",
+        description=(
+            f"**Name:** {record.name}\n"
+            f"**Agency:** {record.agency}\n"
+            f"**Category:** {record.category}\n\n"
+            f"**AI Memorial Draft:**\n{record.ai_memorial_text}"
+        ),
         color=discord.Color.yellow(),
         timestamp=datetime.utcnow()
     )
@@ -122,14 +148,14 @@ def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
 
     embed.add_field(name="Article Title", value=record.article_title or "Source", inline=False)
     embed.add_field(name="Article URL", value=record.article_url, inline=False)
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Click buttons below to approve, edit, or reject.")
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Click interactive buttons below to approve, edit, or reject.")
     return embed
 
 
 def create_eulogy_embed(record: ResponderRecord, eulogy_text: str) -> discord.Embed:
     """Creates a formal Eulogy Speech embed."""
     embed = discord.Embed(
-        title=f"🕊️ Formal Eulogy for {record.name}",
+        title=f"🕊️ Formal Eulogy Speech — {record.name}",
         description=eulogy_text,
         color=discord.Color.dark_purple(),
         timestamp=datetime.utcnow()
@@ -190,6 +216,8 @@ def create_config_embed(guild: discord.Guild, config: GuildConfig) -> discord.Em
     embed.add_field(name="Approval Workflow Mode", value=f"`{config.approval_mode}`", inline=True)
     embed.add_field(name="Alert Role", value=f"<@&{config.alert_role_id}>" if config.alert_role_id else "*None configured*", inline=True)
     embed.add_field(name="Category Name", value=f"`{config.category_name}`", inline=True)
+    embed.add_field(name="Webhooks Enabled", value=f"`{'ENABLED' if config.enable_webhooks else 'DISABLED'}`", inline=True)
+    embed.add_field(name="Social Media Enabled", value=f"`{'ENABLED' if config.enable_social else 'DISABLED'}`", inline=True)
     embed.add_field(name="Custom Embed Header", value=f"`{config.custom_header or 'None'}`", inline=False)
-    embed.set_footer(text="Use /config mode, /config role, or /config header to customize")
+    embed.set_footer(text="Use /config to customize server settings")
     return embed

@@ -1,6 +1,6 @@
 """
-Discord Channel Structure Management supporting Multi-Guild Server Profiles.
-Creates required category and channels per guild based on GuildConfig settings.
+Discord Channel Structure Management.
+Creates required category and channels automatically on startup per server.
 """
 import discord
 from typing import Dict
@@ -41,15 +41,14 @@ def get_or_create_guild_config(db: Session, guild: discord.Guild) -> GuildConfig
 
 async def setup_memorial_channels(guild: discord.Guild) -> Dict[str, discord.TextChannel]:
     """
-    Checks for the server's configured Memorials category and sub-channels.
-    Creates any missing categories or text channels automatically.
+    Checks for the 'Memorials' category and required sub-channels on startup.
+    Creates missing categories or text channels automatically.
     """
     db: Session = SessionLocal()
     try:
         guild_cfg = get_or_create_guild_config(db, guild)
         category_name = guild_cfg.category_name or "Memorials"
 
-        # Check if configured category exists
         category = discord.utils.get(guild.categories, name=category_name)
         if not category:
             logger.info(f"Creating category '{category_name}' in guild '{guild.name}' ({guild.id})...")

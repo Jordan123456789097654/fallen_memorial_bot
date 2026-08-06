@@ -1,17 +1,9 @@
 """
 System Configuration Module using Pydantic Settings.
-Includes Social Media API keys and Render storage path auto-detection.
+Includes Maintenance Mode, Staff Admin Password, & Social Media API keys.
 """
-import os
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-def get_default_db_url() -> str:
-    """Returns persistent Render path if /var/data exists, else local SQLite path."""
-    if os.path.exists("/var/data") and os.access("/var/data", os.W_OK):
-        return "sqlite:////var/data/memorials.db"
-    return "sqlite:///./memorials.db"
 
 
 class Settings(BaseSettings):
@@ -32,9 +24,13 @@ class Settings(BaseSettings):
     BLUESKY_HANDLE: Optional[str] = None
     BLUESKY_PASSWORD: Optional[str] = None
 
+    # System Maintenance & Staff Security
+    MAINTENANCE_MODE: bool = False
+    STAFF_ADMIN_PASSWORD: str = "memorial_staff_2026"
+
     # Backend & Security Settings
     API_KEY: str = "memorial_secret_admin_key_2026"
-    DATABASE_URL: str = get_default_db_url()
+    DATABASE_URL: str = "sqlite:///./memorials.db"
 
     # System Defaults
     APPROVAL_MODE: str = "MANUAL"
@@ -47,6 +43,13 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
+    @property
+    def sqlalchemy_db_url(self) -> str:
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
 
 
 settings = Settings()

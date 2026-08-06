@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import ResponderRecord, ApprovalStatus
 from app.discord.embeds import create_memorial_embed, create_pending_approval_embed
-from app.discord.channels import get_or_create_guild_config
 from app.scanner import post_approved_memorial, load_bible_verses
 from app.ai import get_ai_provider
 from app.utils.logger import logger
@@ -23,7 +22,6 @@ class EditDraftModal(ui.Modal, title="✏️ Edit Memorial Draft Details"):
         super().__init__()
         self.record_id = record_id
 
-        # Fetch current record values to pre-populate text inputs
         db: Session = SessionLocal()
         record = db.query(ResponderRecord).filter(ResponderRecord.id == record_id).first()
         db.close()
@@ -96,7 +94,7 @@ class PendingReviewView(ui.View):
     """
 
     def __init__(self, record_id: int):
-        super().__init__(timeout=None)  # Persistent view across bot restarts
+        super().__init__(timeout=None)
         self.record_id = record_id
 
     @ui.button(label="Approve", style=discord.ButtonStyle.green, custom_id="approve_btn", emoji="✅")
@@ -119,7 +117,6 @@ class PendingReviewView(ui.View):
 
             await post_approved_memorial(interaction.client, record)
 
-            # Disable buttons after approval
             for child in self.children:
                 child.disabled = True
             await interaction.message.edit(view=self)

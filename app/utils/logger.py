@@ -1,5 +1,5 @@
 """
-Logging utilities for Fallen Officer Memorial Intelligence System.
+Logging utility for Fallen Officer Memorial Intelligence System.
 """
 import logging
 import sys

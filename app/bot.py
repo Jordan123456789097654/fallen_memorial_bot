@@ -25,10 +25,8 @@ class MemorialBot(commands.Bot):
 
     async def setup_hook(self):
         """Called automatically when the bot is initializing."""
-        # Register slash commands
         register_slash_commands(self)
 
-        # Sync command tree
         try:
             if settings.DISCORD_GUILD_ID:
                 guild = discord.Object(id=settings.DISCORD_GUILD_ID)

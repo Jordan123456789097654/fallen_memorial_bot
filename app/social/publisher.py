@@ -2,6 +2,7 @@
 X (Twitter) & BlueSky Social Media Publisher.
 Automatically formats and broadcasts approved memorial posts and EOW anniversaries.
 """
+import datetime
 import aiohttp
 from typing import Dict, Any
 from app.config import settings
@@ -24,7 +25,6 @@ class SocialPublisher:
         eow = record_dict.get("date_of_death", "Line of Duty")
         url = record_dict.get("article_url", "")
 
-        # Format social media post text
         post_text = (
             f"🕯️ IN MEMORY: We honor {name} of the {agency}.\n"
             f"End of Watch: {eow}.\n\n"
@@ -33,7 +33,6 @@ class SocialPublisher:
             f"#FallenHero #LineOfDuty #NeverForgotten"
         )
 
-        # Broadcast to X and BlueSky concurrently
         await self._post_to_x(post_text)
         await self._post_to_bluesky(post_text)
 
@@ -64,7 +63,6 @@ class SocialPublisher:
             return
 
         try:
-            # REST payload to Twitter API v2 /2/tweets
             url = "https://api.twitter.com/2/tweets"
             headers = {
                 "Authorization": f"Bearer {settings.X_ACCESS_TOKEN}",
@@ -88,7 +86,6 @@ class SocialPublisher:
             return
 
         try:
-            # BlueSky com.atproto.server.createSession & createRecord REST API
             async with aiohttp.ClientSession() as session:
                 auth_url = "https://bsky.social/xrpc/com.atproto.server.createSession"
                 auth_payload = {
@@ -109,7 +106,7 @@ class SocialPublisher:
                             "record": {
                                 "$type": "app.bsky.feed.post",
                                 "text": text,
-                                "createdAt": aiohttp.helpers.datetime.datetime.utcnow().isoformat() + "Z"
+                                "createdAt": datetime.datetime.utcnow().isoformat() + "Z"
                             }
                         }
                         async with session.post(record_url, json=record_payload, headers=headers, timeout=10) as post_resp:

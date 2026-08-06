@@ -1,3 +1,3 @@
 """
-Discord Module initialization.
+Discord Module Initialization.
 """

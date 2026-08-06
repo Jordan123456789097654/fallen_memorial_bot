@@ -1,5 +1,5 @@
 """
-SQLAlchemy database models for Responder Records, Condolences, Webhooks, and Multi-Guild Configurations.
+SQLAlchemy database models for Responder Records, Condolences, Candle Logs, Webhooks, and Multi-Guild Configurations.
 """
 import enum
 from datetime import datetime
@@ -29,7 +29,7 @@ class ResponderRecord(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
 
-    # Responder Details
+    # Responder Information
     name = Column(String(255), nullable=False, default="Unknown Hero")
     agency = Column(String(255), nullable=False, default="Unknown Agency")
     category = Column(Enum(ResponderCategory), nullable=False, default=ResponderCategory.OTHER)
@@ -65,6 +65,7 @@ class ResponderRecord(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     condolences = relationship("Condolence", back_populates="responder", cascade="all, delete-orphan")
+    candle_logs = relationship("CandleLog", back_populates="responder", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -116,6 +117,17 @@ class Condolence(Base):
         }
 
 
+class CandleLog(Base):
+    __tablename__ = "candle_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    record_id = Column(Integer, ForeignKey("responder_records.id"), nullable=False, index=True)
+    client_ip = Column(String(100), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    responder = relationship("ResponderRecord", back_populates="candle_logs")
+
+
 class WebhookSubscription(Base):
     __tablename__ = "webhook_subscriptions"
 
@@ -145,12 +157,14 @@ class GuildConfig(Base):
     guild_name = Column(String(255), nullable=False, default="Unknown Server")
     approval_mode = Column(String(50), nullable=False, default="MANUAL")
     alert_role_id = Column(String(100), nullable=True)
+    admin_role_id = Column(String(100), nullable=True)
     category_name = Column(String(100), nullable=False, default="Memorials")
     custom_header = Column(String(255), nullable=True)
+    bot_nickname = Column(String(100), nullable=True)
     
-    # Per-server feature toggles
     enable_webhooks = Column(Boolean, default=True)
     enable_social = Column(Boolean, default=True)
+    enable_keep_alive = Column(Boolean, default=True)
     is_enabled = Column(Boolean, default=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -162,10 +176,13 @@ class GuildConfig(Base):
             "guild_name": self.guild_name,
             "approval_mode": self.approval_mode,
             "alert_role_id": self.alert_role_id,
+            "admin_role_id": self.admin_role_id,
             "category_name": self.category_name,
             "custom_header": self.custom_header,
+            "bot_nickname": self.bot_nickname,
             "enable_webhooks": self.enable_webhooks,
             "enable_social": self.enable_social,
+            "enable_keep_alive": self.enable_keep_alive,
             "is_enabled": self.is_enabled,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

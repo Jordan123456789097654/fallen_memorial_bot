@@ -1,21 +1,25 @@
 """
-Google Gemini Implementation of AIProvider with Eulogy and Timeline generation.
+Google Gemini Implementation of AIProvider with Advanced Multi-Stage Intelligence Prompts.
 """
 import json
 import re
 from typing import Dict, Any, List
 from app.ai.provider import AIProvider
-from app.ai.prompts import EXTRACTION_SYSTEM_PROMPT, MEMORIAL_GENERATION_PROMPT
+from app.ai.prompts import (
+    EXTRACTION_SYSTEM_PROMPT,
+    MEMORIAL_GENERATION_PROMPT,
+    EULOGY_GENERATION_PROMPT,
+    INCIDENT_REPORT_PROMPT,
+    TIMELINE_EXTRACTION_PROMPT
+)
 from app.config import settings
 from app.utils.logger import logger
 
-# Try importing google.generativeai
 try:
     import google.generativeai as genai
     HAS_GENAI = True
 except ImportError:
     HAS_GENAI = False
-    logger.warning("google-generativeai package not installed or import error. AI provider fallback enabled.")
 
 
 class GeminiProvider(AIProvider):
@@ -57,7 +61,11 @@ class GeminiProvider(AIProvider):
                     "category": data.get("category", "OTHER"),
                     "date_of_incident": data.get("date_of_incident", "Recent"),
                     "date_of_death": data.get("date_of_death", "End of Watch"),
-                    "summary": data.get("summary", article_title)
+                    "summary": data.get("summary", article_title),
+                    "k9_handler_name": data.get("k9_handler_name"),
+                    "k9_breed": data.get("k9_breed"),
+                    "service_years": data.get("service_years"),
+                    "unit_badge": data.get("unit_badge")
                 }
             except Exception as e:
                 logger.error(f"Gemini API extraction error: {e}. Utilizing fallback parser.")
@@ -65,7 +73,7 @@ class GeminiProvider(AIProvider):
         return self._fallback_extraction(combined_text, article_title)
 
     async def generate_memorial(self, extracted_data: Dict[str, Any], verse: Dict[str, str]) -> str:
-        """Generates a memorial tribute using Gemini or template fallback."""
+        """Generates a solemn memorial tribute using Gemini or template fallback."""
         name = extracted_data.get("name", "Fallen Hero")
         agency = extracted_data.get("agency", "Emergency Services")
         category = extracted_data.get("category", "OTHER")
@@ -89,7 +97,7 @@ class GeminiProvider(AIProvider):
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
-                logger.error(f"Gemini memorial generation failed: {e}. Using fallback tribute.")
+                logger.error(f"Gemini memorial generation failed: {e}")
 
         return (
             f"It is with heavy hearts and profound honor that we remember **{name}** of **{agency}**. "
@@ -101,7 +109,7 @@ class GeminiProvider(AIProvider):
         )
 
     async def generate_eulogy(self, record_data: Dict[str, Any]) -> str:
-        """Generates a formal, solemn eulogy speech draft for a fallen responder."""
+        """Generates a formal State Funeral Eulogy speech draft."""
         name = record_data.get("name", "Fallen Emergency Responder")
         agency = record_data.get("agency", "Emergency Services")
         summary = record_data.get("summary", "Honoring faithful service.")
@@ -109,10 +117,11 @@ class GeminiProvider(AIProvider):
 
         if self._initialized:
             try:
-                prompt = (
-                    f"Write a solemn, deeply reverent, 300-word memorial eulogy speech for {name} of {agency}. "
-                    f"Details: {summary}. End of Watch: {eow}. "
-                    f"Focus on bravery, sacrifice, community protection, and everlasting honor."
+                prompt = EULOGY_GENERATION_PROMPT.format(
+                    name=name,
+                    agency=agency,
+                    summary=summary,
+                    date_of_death=eow
                 )
                 response = self.model.generate_content(prompt)
                 if response and response.text:
@@ -121,24 +130,21 @@ class GeminiProvider(AIProvider):
                 logger.error(f"Gemini eulogy generation failed: {e}")
 
         return (
-            f"**Solemn Funeral Eulogy for {name}**\n\n"
+            f"**Formal State Funeral Eulogy for {name}**\n\n"
             f"Friends, family, and honored colleagues:\n\n"
             f"We gather today in heavy silence to honor a true guardian of our community, **{name}** of the **{agency}**. "
             f"When danger called, {name} stood without hesitation on the front lines of public service.\n\n"
             f"{summary}\n\n"
             f"Their courage represents the highest ideals of selflessness and honor. Though their End of Watch arrived far too soon on {eow}, "
             f"their legacy of protection, valor, and sacrifice will forever shine as a beacon of light in our community.\n\n"
-            f"May peace rest upon their family, strength upon their fellow responders, and everlasting honor upon their memory. Rest in peace."
+            f"May peace rest upon their family, strength upon their fellow responders, and everlasting honor upon their memory. Rest in peace, your watch is ended."
         )
 
     async def extract_timeline(self, raw_text: str) -> List[Dict[str, str]]:
         """Extracts a chronological timeline of events."""
         if self._initialized and raw_text:
             try:
-                prompt = (
-                    f"Extract a JSON array of events from this news text detailing the incident timeline for a responder memorial.\n"
-                    f"Return ONLY JSON: [{{\"time_or_date\": \"Event Date/Time\", \"event\": \"Event description\"}}]\n\nText:\n{raw_text}"
-                )
+                prompt = TIMELINE_EXTRACTION_PROMPT.format(text=raw_text)
                 response = self.model.generate_content(prompt)
                 resp_text = response.text.strip()
                 if resp_text.startswith("```"):
@@ -180,5 +186,9 @@ class GeminiProvider(AIProvider):
             "category": category,
             "date_of_incident": "Recent",
             "date_of_death": "End of Watch",
-            "summary": title
+            "summary": title,
+            "k9_handler_name": None,
+            "k9_breed": None,
+            "service_years": None,
+            "unit_badge": None
         }
