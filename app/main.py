@@ -127,9 +127,75 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-@app.get("/healthz", tags=["System Health"])
-async def healthz():
-    return {"status": "ok", "service": "fallen-officer-memorial-system"}
+@app.api_route("/healthz", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
+@app.api_route("/ping", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
+@app.api_route("/status", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
+@app.api_route("/api/status", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
+async def system_health_status(request: Request, response: Response, db: Session = Depends(get_db)):
+    """
+    Universal health check & uptime status endpoint for external monitoring tools
+    (UptimeRobot, Better Uptime, StatusCake, Pingdom, Render Monitors).
+    Supports GET and HEAD HTTP methods.
+    """
+    bot_online = False
+    bot_latency = None
+    if bot and hasattr(bot, 'is_ready') and bot.is_ready():
+        bot_online = True
+        bot_latency = round(bot.latency * 1000) if hasattr(bot, 'latency') else None
+
+    db_status = "connected"
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+    except Exception:
+        db_status = "error"
+
+    maint = settings.MAINTENANCE_MODE
+    status_str = "maintenance" if maint else "operational"
+
+    response.headers["X-System-Status"] = status_str
+    response.headers["X-Bot-Online"] = str(bot_online)
+    if bot_latency is not None:
+        response.headers["X-Bot-Latency-MS"] = str(bot_latency)
+
+    if request.method == "HEAD":
+        return Response(status_code=200)
+
+    return {
+        "status": "ok",
+        "system": "Fallen Officer Memorial Intelligence System",
+        "version": "2.5.0",
+        "uptime_status": status_str,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "database": db_status,
+        "discord_bot": {
+            "online": bot_online,
+            "latency_ms": bot_latency
+        },
+        "maintenance_mode": maint
+    }
+
+
+@app.get("/api/status/badge", tags=["System Health & Uptime"])
+async def get_uptime_status_badge():
+    """
+    Shields.io compatible JSON badge endpoint for live README/Status Page badges.
+    """
+    maint = settings.MAINTENANCE_MODE
+    if maint:
+        return {
+            "schemaVersion": 1,
+            "label": "memorial system",
+            "message": "maintenance",
+            "color": "orange"
+        }
+    return {
+        "schemaVersion": 1,
+        "label": "memorial system",
+        "message": "operational",
+        "color": "brightgreen"
+    }
 
 
 @app.get("/", tags=["Web Memorial Wall"])
@@ -159,6 +225,12 @@ async def serve_memorial_wall():
 @app.get("/admin", tags=["Staff Admin Portal"])
 async def serve_admin_portal():
     return FileResponse("app/static/admin.html")
+
+
+@app.get("/system-status", tags=["System Status Page"])
+@app.get("/status.html", tags=["System Status Page"])
+async def serve_status_page():
+    return FileResponse("app/static/status.html")
 
 
 @app.get("/api/memorials", tags=["Public Memorials"])

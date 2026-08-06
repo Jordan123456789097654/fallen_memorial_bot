@@ -42,19 +42,25 @@ def load_bible_verses():
 
 async def self_ping_keep_alive():
     """
-    Automated background worker running every 5 minutes to ping the web application,
-    preventing free tier cloud instances (e.g. Render Web Services) from sleeping.
+    Automated background worker running every 60 seconds to ping the public web application URL,
+    preventing cloud hosting providers (e.g. Render Web Services) from entering idle sleep mode.
     """
-    url = "http://127.0.0.1:8000/healthz"
+    public_url = "https://fallen-memorial-bot.onrender.com/healthz"
+    local_url = "http://127.0.0.1:8000/healthz"
+    headers = {"User-Agent": "MemorialKeepAliveWorker/2.5"}
+
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as response:
-                if response.status == 200:
-                    logger.info("Self-Ping Keep-Alive Heartbeat: OK (200)")
-                else:
-                    logger.warning(f"Self-Ping Keep-Alive Heartbeat returned status: {response.status}")
+        async with aiohttp.ClientSession(headers=headers) as session:
+            try:
+                async with session.get(public_url, timeout=12) as response:
+                    if response.status == 200:
+                        logger.info("Public Keep-Alive Heartbeat (Render): OK (200)")
+            except Exception:
+                async with session.get(local_url, timeout=5) as local_resp:
+                    if local_resp.status == 200:
+                        logger.info("Local Keep-Alive Heartbeat: OK (200)")
     except Exception as e:
-        logger.debug(f"Self-Ping Keep-Alive Heartbeat ping exception (expected if web server starting): {e}")
+        logger.debug(f"Keep-Alive Heartbeat exception: {e}")
 
 
 async def daily_moment_of_silence(bot=None):

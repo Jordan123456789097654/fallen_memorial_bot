@@ -34,16 +34,16 @@ def start_scheduler(bot=None):
         replace_existing=True
     )
 
-    # 5-Minute Self-Ping Keep-Alive Worker to prevent Render Web App spin-down
+    # 1-Minute Public Keep-Alive Worker to prevent Render Web App spin-down
     scheduler.add_job(
         self_ping_keep_alive,
-        trigger=IntervalTrigger(minutes=5),
+        trigger=IntervalTrigger(minutes=1),
         id="keep_alive_job",
         replace_existing=True
     )
 
     scheduler.start()
-    logger.info(f"APScheduler started. News scan: {settings.SCAN_INTERVAL_HOURS}h | Daily Roll Call: 08:00 AM | Keep-Alive: 5m")
+    logger.info(f"APScheduler started. News scan: {settings.SCAN_INTERVAL_HOURS}h | Daily Roll Call: 08:00 AM | Keep-Alive: 1m")
 
 
 def stop_scheduler():

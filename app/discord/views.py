@@ -154,7 +154,7 @@ class MemorialInteractionView(ui.View):
         cert_url = f"https://fallen-memorial-bot.onrender.com/responders/{record_id}/certificate"
         self.add_item(ui.Button(label="📜 Certificate", url=cert_url, style=discord.ButtonStyle.link))
 
-    @ui.button(label="Light Candle", style=discord.ButtonStyle.gold, custom_id="light_candle_btn", emoji="🕯️")
+    @ui.button(label="Light Candle", style=discord.ButtonStyle.secondary, custom_id="light_candle_btn", emoji="🕯️")
     async def light_candle_btn(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.defer(ephemeral=True)
         db: Session = SessionLocal()
