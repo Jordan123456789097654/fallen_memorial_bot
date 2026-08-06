@@ -762,6 +762,25 @@
       }
     }
 
+    async function toggleWebsiteShutdown() {
+      if (!confirm("⚠️ Are you sure you want to SHUTDOWN the website completely? Public visitors will be blocked with a 503 Website Offline page until restored.")) return;
+      try {
+        const res = await fetch('/api/admin/shutdown', {
+          method: 'POST',
+          headers: { 'X-Admin-Password': staffPass }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`🔴 ${data.message}`);
+          loadAllData();
+        } else {
+          alert('Failed to toggle website shutdown state.');
+        }
+      } catch (err) {
+        alert('Shutdown toggle error!');
+      }
+    }
+
     function showTab(panelId, btn) {
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
