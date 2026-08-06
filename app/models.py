@@ -95,6 +95,8 @@ class ResponderRecord(Base):
             "category": self.category.value if isinstance(self.category, enum.Enum) else self.category,
             "date_of_incident": self.date_of_incident,
             "date_of_death": self.date_of_death,
+            "cause_of_death": self.cause_of_death,
+            "surviving_family": self.surviving_family,
             "summary": self.summary,
             "nleomf_verified": self.nleomf_verified,
             "odmp_verified": self.odmp_verified,

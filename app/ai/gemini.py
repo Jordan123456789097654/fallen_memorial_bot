@@ -276,6 +276,23 @@ class GeminiProvider(AIProvider):
         else:
             eow_date = datetime.utcnow().strftime("%B %d, %Y")
 
+        # 4. Smart Cause of Death Extraction
+        cause_of_death = "Line of Duty Injury"
+        if any(w in lower for w in ["shootout", "shot", "gunfire", "gunshot"]):
+            cause_of_death = "Fatal Gunfire / Shootout in Line of Duty"
+        elif any(w in lower for w in ["crash", "collision", "vehicular", "accident"]):
+            cause_of_death = "Fatal Vehicular Crash in Line of Duty"
+        elif any(w in lower for w in ["fire", "flames", "smoke", "structure collapse"]):
+            cause_of_death = "Structure Fire & Smoke Inhalation in Line of Duty"
+        elif any(w in lower for w in ["heart attack", "medical emergency", "cardiac"]):
+            cause_of_death = "Medical Emergency / Duty-Related Sudden Death"
+
+        # 5. Smart Surviving Family Extraction
+        family_info = None
+        fam_match = re.search(r'\b(survived by\s+[^.\n]+|\bwife\b[^\.\n]+|\bhusband\b[^\.\n]+|\bchildren\b[^\.\n]+)', lower)
+        if fam_match:
+            family_info = fam_match.group(0).strip().capitalize()
+
         is_fallen = any(w in lower for w in ["died", "killed", "passed away", "end of watch", "eow", "fatal", "tribute", "memorial", "line of duty", "shootout", "crash"])
 
         return {
@@ -285,6 +302,8 @@ class GeminiProvider(AIProvider):
             "category": category,
             "date_of_incident": "Recent Line of Duty Incident",
             "date_of_death": eow_date,
+            "cause_of_death": cause_of_death,
+            "surviving_family": family_info,
             "summary": title,
             "k9_handler_name": None,
             "k9_breed": None,

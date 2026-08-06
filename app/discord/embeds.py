@@ -82,6 +82,12 @@ def create_memorial_embed(record: ResponderRecord, custom_header: str = None) ->
     embed.add_field(name="🛡️ Category", value=cat_display, inline=True)
     embed.add_field(name="🕯️ Date / EOW", value=eow_val, inline=True)
 
+    if record.cause_of_death:
+        embed.add_field(name="✝️ Cause of Duty Death", value=clean_text(record.cause_of_death), inline=False)
+
+    if record.surviving_family:
+        embed.add_field(name="💐 Surviving Family", value=clean_text(record.surviving_family), inline=False)
+
     # Scripture Tribute Block
     embed.add_field(
         name="📖 Scripture Tribute",
@@ -118,16 +124,20 @@ def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord
     year_str = f"{years_ago} Year{'s' if years_ago > 1 else ''} Ago Today" if years_ago > 0 else "Annual Anniversary"
     verse = record.bible_verse or "Then I heard the voice of the Lord saying, 'Whom shall I send? And who will go for us?' And I said, 'Here am I. Send me!'"
     verse_ref = record.bible_reference or "Isaiah 6:8"
+    name = clean_text(record.name) or "Fallen Emergency Responder"
+    agency = clean_text(record.agency) or "Emergency Services Department"
 
     embed = discord.Embed(
-        title=f"🕯️ EOW Anniversary Remembrance — {clean_text(record.name)}",
-        description=f"**{year_str}**, we lost a hero from **{clean_text(record.agency)}**. Today we honor their lasting legacy and service.",
+        title=f"🕊️ {year_str}: In Solemn Remembrance",
+        description=f"Today we pause in silent tribute to honor **{name}** of **{agency}**, who made the ultimate sacrifice in line of duty.\n\n> *\"{verse}\"*\n— **{verse_ref}**",
         color=color,
         timestamp=datetime.utcnow()
     )
-
-    embed.add_field(name="🏛️ Agency", value=clean_text(record.agency), inline=True)
+    embed.add_field(name="🏛️ Agency", value=agency, inline=True)
     embed.add_field(name="🕯️ End of Watch", value=record.date_of_death or "Line of Duty", inline=True)
+
+    if record.cause_of_death:
+        embed.add_field(name="✝️ Cause of Duty Death", value=clean_text(record.cause_of_death), inline=False)
 
     embed.add_field(
         name="📖 Scripture Tribute",
@@ -171,6 +181,12 @@ def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
     embed.add_field(name="🏛️ Agency", value=agency, inline=True)
     embed.add_field(name="🛡️ Category", value=cat_display, inline=True)
     embed.add_field(name="🕯️ Date / EOW", value=eow_val, inline=True)
+
+    if record.cause_of_death:
+        embed.add_field(name="✝️ Cause of Duty Death", value=clean_text(record.cause_of_death), inline=False)
+
+    if record.surviving_family:
+        embed.add_field(name="💐 Surviving Family", value=clean_text(record.surviving_family), inline=False)
 
     embed.add_field(name="🔗 Source News Article", value=f"[{article_title}]({record.article_url})", inline=False)
     embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Status: PENDING • Click buttons below to approve or reject.")

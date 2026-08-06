@@ -16,6 +16,7 @@ from app.discord.channels import get_or_create_guild_config
 from app.social import SocialPublisher
 from app.utils.logger import logger
 
+import re
 import random
 import feedparser
 
@@ -27,6 +28,26 @@ RSS_FEEDS = [
     "https://news.google.com/rss/search?q=deputy+killed+line+of+duty&hl=en-US&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=trooper+killed+line+of+duty&hl=en-US&gl=US&ceid=US:en",
 ]
+
+
+async def scrape_full_article_content(url: str) -> str:
+    """Fetches full news article webpage content to extract cause of death & family details."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    try:
+        async with aiohttp.ClientSession(headers=headers, timeout=aiohttp.ClientTimeout(total=8)) as session:
+            async with session.get(url, allow_redirects=True) as resp:
+                if resp.status == 200:
+                    html = await resp.text()
+                    text = re.sub(r'<script.*?>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+                    text = re.sub(r'<style.*?>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+                    text = re.sub(r'<[^>]+>', ' ', text)
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    return text[:4000]
+    except Exception as e:
+        logger.warning(f"Could not scrape full article URL {url}: {e}")
+    return ""
 
 
 def load_bible_verses():
@@ -134,10 +155,13 @@ async def scan_news_sources(bot=None) -> dict:
                     if existing:
                         continue
 
+                    full_webpage_text = await scrape_full_article_content(link)
+                    combined_content = f"Title: {title}\nSummary: {summary}\nFull Webpage Article Text:\n{full_webpage_text}"
+
                     scraped = {
                         "article_title": title,
                         "article_url": link,
-                        "raw_content": f"{title}\n{summary}",
+                        "raw_content": combined_content,
                         "source_domain": link.split("/")[2] if "//" in link else "google_news"
                     }
 
@@ -170,6 +194,8 @@ async def scan_news_sources(bot=None) -> dict:
                         category=cat_enum,
                         date_of_incident=parsed_data.get("date_of_incident"),
                         date_of_death=parsed_data.get("date_of_death") or "End of Watch",
+                        cause_of_death=parsed_data.get("cause_of_death"),
+                        surviving_family=parsed_data.get("surviving_family"),
                         summary=parsed_data.get("summary") or summary,
                         article_title=title,
                         article_url=link,
