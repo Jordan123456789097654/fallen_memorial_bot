@@ -1,6 +1,6 @@
 """
 Main FastAPI Application Entrypoint.
-Concurrently hosts REST API, Web Memorial Wall, Leaflet Map, RSS Feed (/feed.xml), PDF Certificates, Family Claims, and discord.py Bot.
+Concurrently hosts REST API, Web Memorial Wall, Leaflet Map, RSS Feed (/feed.xml), PDF Certificates, Family Claims, ODMP/NLEOMF Registry Verification, and discord.py Bot.
 """
 import io
 import csv
@@ -22,6 +22,7 @@ from app.bot import bot
 from app.scheduler import start_scheduler, stop_scheduler
 from app.scanner import scan_news_sources, post_approved_memorial
 from app.ai import get_ai_provider
+from app.utils.verification import verify_responder_registry
 from app.utils.security import verify_api_key
 from app.utils.logger import logger
 
@@ -70,13 +71,12 @@ class CustomMemorialCreate(BaseModel):
     bible_verse: Optional[str] = None
     bible_reference: Optional[str] = None
     ai_memorial_text: Optional[str] = None
-    article_title: Optional[str] = "Custom Staff Entry"
+    article_title: Optional[str] = "Official Memorial Record"
     article_url: Optional[str] = None
     auto_approve: bool = True
 
 
 def verify_staff_password(x_admin_password: str = Header(None)):
-    """Verifies Staff Admin Password header."""
     if not x_admin_password or x_admin_password != settings.STAFF_ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid Staff Admin Password")
     return x_admin_password
@@ -84,7 +84,6 @@ def verify_staff_password(x_admin_password: str = Header(None)):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI Lifespan handler for concurrent bot execution and scheduler management."""
     logger.info("Initializing Fallen Officer Memorial Intelligence System...")
     init_db()
 
@@ -113,7 +112,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Fallen Officer Memorial Intelligence System API",
-    description="Backend API, Web Memorial Wall, Leaflet Map, RSS Feed, PDF Certificates, & Multi-Server Bot Engine",
+    description="Backend API, Web Memorial Wall, Leaflet Map, RSS Feed, PDF Certificates, ODMP/NLEOMF Registry Verification, & Multi-Server Bot Engine",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -155,9 +154,27 @@ async def serve_admin_portal():
     return FileResponse("app/static/admin.html")
 
 
+@app.post("/responders/{id}/verify", tags=["ODMP & NLEOMF Registry Auto-Verification"])
+async def trigger_registry_verification(id: int, db: Session = Depends(get_db)):
+    """Cross-matches record against NLEOMF, ODMP, and Fire Hero national registries."""
+    record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Memorial record not found.")
+
+    res = await verify_responder_registry(record.to_dict())
+    record.nleomf_verified = res.get("nleomf_verified", False)
+    record.odmp_verified = res.get("odmp_verified", False)
+    record.fire_hero_verified = res.get("fire_hero_verified", False)
+    record.unit_awards = res.get("unit_awards")
+    record.verification_badge = res.get("verification_badge")
+    db.commit()
+    db.refresh(record)
+
+    return {"status": "verified", "record": record.to_dict()}
+
+
 @app.get("/feed.xml", tags=["RSS Webfeed Syndication"])
 async def get_rss_webfeed(db: Session = Depends(get_db)):
-    """Generates an outgoing RSS 2.0 XML feed for news syndication."""
     records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).order_by(ResponderRecord.id.desc()).limit(25).all()
 
     items_xml = ""
@@ -178,7 +195,7 @@ async def get_rss_webfeed(db: Session = Depends(get_db)):
 <rss version="2.0">
   <channel>
     <title>National Fallen Responder Memorial Intelligence Feed</title>
-    <link>https://fallen-responder.onrender.com/wall</link>
+    <link>https://fallen-memorial-bot.onrender.com/wall</link>
     <description>Official RSS feed of approved emergency responder line-of-duty memorials.</description>
     <language>en-us</language>
     {items_xml}
@@ -190,7 +207,6 @@ async def get_rss_webfeed(db: Session = Depends(get_db)):
 
 @app.get("/responders/{id}/certificate", tags=["Printable Certificates"])
 async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
-    """Generates a printable framed HTML/PDF tribute certificate of honor."""
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
@@ -233,7 +249,6 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
 
 @app.post("/responders/{id}/claim", tags=["Family Claim Portal"])
 async def submit_family_claim(id: int, payload: FamilyClaimCreate, db: Session = Depends(get_db)):
-    """Submits a claim request by verified family or agency representative."""
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
@@ -254,7 +269,6 @@ async def submit_family_claim(id: int, payload: FamilyClaimCreate, db: Session =
 
 @app.get("/api/vigil/live", tags=["Real-Time Candle Vigils"])
 async def get_live_vigil_stats(db: Session = Depends(get_db)):
-    """Fetches global live candle vigil counters."""
     total_candles = db.query(ResponderRecord).all()
     c_sum = sum(r.candle_count for r in total_candles)
     return {"global_candles_lit": c_sum, "active_vigil": True}
@@ -274,13 +288,26 @@ async def create_custom_memorial(
     import time
     art_url = payload.article_url or f"https://memorial.custom/entry/{int(time.time())}"
 
+    # Auto-verify against national registries
+    ver_res = await verify_responder_registry({
+        "name": payload.name,
+        "agency": payload.agency,
+        "category": payload.category,
+        "summary": payload.summary
+    })
+
     record = ResponderRecord(
         name=payload.name.strip(),
         agency=payload.agency.strip(),
         category=cat_enum,
         date_of_incident=payload.date_of_incident,
         date_of_death=payload.date_of_death or "End of Watch",
-        summary=payload.summary or f"Custom staff tribute entry for {payload.name}.",
+        summary=payload.summary or f"Official memorial tribute for {payload.name}.",
+        nleomf_verified=ver_res.get("nleomf_verified", False),
+        odmp_verified=ver_res.get("odmp_verified", False),
+        fire_hero_verified=ver_res.get("fire_hero_verified", False),
+        unit_awards=ver_res.get("unit_awards"),
+        verification_badge=ver_res.get("verification_badge"),
         latitude=payload.latitude,
         longitude=payload.longitude,
         photo_url=payload.photo_url,
@@ -288,9 +315,9 @@ async def create_custom_memorial(
         k9_breed=payload.k9_breed,
         service_years=payload.service_years,
         unit_badge=payload.unit_badge,
-        article_title=payload.article_title or f"Memorial Tribute: {payload.name}",
+        article_title=payload.article_title or f"Memorial Record: {payload.name}",
         article_url=art_url,
-        source_domain="custom_entry",
+        source_domain="official_memorial",
         bible_verse=payload.bible_verse or "Greater love has no one than this: to lay down one's life for one's friends.",
         bible_reference=payload.bible_reference or "John 15:13",
         ai_memorial_text=payload.ai_memorial_text or payload.summary or f"Honoring the courage and ultimate sacrifice of {payload.name}.",

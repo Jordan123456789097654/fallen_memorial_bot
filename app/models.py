@@ -37,6 +37,13 @@ class ResponderRecord(Base):
     date_of_death = Column(String(100), nullable=True)
     summary = Column(Text, nullable=True)
 
+    # Registry Verification & Awards
+    nleomf_verified = Column(Boolean, default=False)
+    odmp_verified = Column(Boolean, default=False)
+    fire_hero_verified = Column(Boolean, default=False)
+    unit_awards = Column(String(500), nullable=True)
+    verification_badge = Column(String(100), default="VERIFIED_NATIONAL_HONOR_ROLL")
+
     # Map Coordinates & Photo
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
@@ -87,6 +94,11 @@ class ResponderRecord(Base):
             "date_of_incident": self.date_of_incident,
             "date_of_death": self.date_of_death,
             "summary": self.summary,
+            "nleomf_verified": self.nleomf_verified,
+            "odmp_verified": self.odmp_verified,
+            "fire_hero_verified": self.fire_hero_verified,
+            "unit_awards": self.unit_awards,
+            "verification_badge": self.verification_badge,
             "latitude": self.latitude,
             "longitude": self.longitude,
             "photo_url": self.photo_url,

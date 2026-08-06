@@ -40,7 +40,12 @@ def run_migrations():
         ("responder_records", "longitude", "DOUBLE PRECISION"),
         ("responder_records", "photo_url", "VARCHAR(1000)"),
         ("responder_records", "claimed_by_family", "BOOLEAN DEFAULT FALSE"),
-        ("responder_records", "family_contact", "VARCHAR(255)")
+        ("responder_records", "family_contact", "VARCHAR(255)"),
+        ("responder_records", "nleomf_verified", "BOOLEAN DEFAULT FALSE"),
+        ("responder_records", "odmp_verified", "BOOLEAN DEFAULT FALSE"),
+        ("responder_records", "fire_hero_verified", "BOOLEAN DEFAULT FALSE"),
+        ("responder_records", "unit_awards", "VARCHAR(500)"),
+        ("responder_records", "verification_badge", "VARCHAR(100) DEFAULT 'VERIFIED_NATIONAL_HONOR_ROLL'")
     ]
 
     for table_name, col_name, col_type in cols_to_add:
