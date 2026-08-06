@@ -246,6 +246,66 @@
       <input type="password" id="staffPassInput" placeholder="Staff Admin Password">
       <button class="action-btn btn-scan" style="width: 100%; padding: 0.85rem;" onclick="loginStaff()">Authenticate Portal</button>
     </div>
+  <!-- Edit Record Modal -->
+  <div class="auth-overlay" id="editModal">
+    <div class="auth-box" style="max-width: 650px; text-align: left;">
+      <h2 style="color: var(--gold); margin-bottom: 0.5rem;">✏️ Manage & Edit Memorial Record</h2>
+      <p style="color: var(--muted); margin-bottom: 1.25rem;">Update officer details, agency, category, cause of death, family info, or status.</p>
+      
+      <form onsubmit="saveEditModal(event)">
+        <input type="hidden" id="editId">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div>
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">Responder Name</label>
+            <input type="text" id="editName" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;" required>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">Agency / Department</label>
+            <input type="text" id="editAgency" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;" required>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">Service Category</label>
+            <select id="editCategory" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;">
+              <option value="LAW_ENFORCEMENT">Law Enforcement</option>
+              <option value="FIRE">Fire Service</option>
+              <option value="EMS">EMS & Paramedics</option>
+              <option value="RESCUE">Rescue Personnel</option>
+              <option value="K9">K9 Hero</option>
+              <option value="DISPATCH">911 Dispatcher</option>
+              <option value="OTHER">Other Responder</option>
+            </select>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">End of Watch / Date</label>
+            <input type="text" id="editDateDeath" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;">
+          </div>
+          <div style="grid-column: span 2;">
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">✝️ Cause of Duty Death</label>
+            <input type="text" id="editCauseDeath" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;">
+          </div>
+          <div style="grid-column: span 2;">
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">💐 Surviving Family Info</label>
+            <input type="text" id="editSurvivingFamily" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;">
+          </div>
+          <div style="grid-column: span 2;">
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">Incident Summary & Bio</label>
+            <textarea id="editSummary" rows="3" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;"></textarea>
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.8rem; color: var(--gold); margin-bottom: 0.25rem;">Approval Status</label>
+            <select id="editStatus" style="width: 100%; padding: 0.65rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff;">
+              <option value="APPROVED">APPROVED</option>
+              <option value="PENDING">PENDING</option>
+              <option value="REJECTED">REJECTED</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem; justify-content: flex-end;">
+          <button type="button" class="action-btn btn-reject" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" class="action-btn btn-scan" style="padding: 0.75rem 1.5rem;">💾 Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Sidebar -->
@@ -654,6 +714,7 @@
             <td>${r.category}</td>
             <td>${r.date_of_death || 'N/A'}</td>
             <td>
+              <button class="action-btn btn-edit" onclick="openEditModal(${r.id})">✏️ Edit</button>
               <button class="action-btn btn-approve" onclick="approveRecord(${r.id})">Approve</button>
               <button class="action-btn btn-reject" onclick="rejectRecord(${r.id})">Reject</button>
             </td>
@@ -667,12 +728,72 @@
             <td>${r.category}</td>
             <td>🕯️ ${r.candle_count || 0}</td>
             <td>
+              <button class="action-btn btn-edit" onclick="openEditModal(${r.id})">✏️ Edit</button>
+              <a href="/responders/${r.id}/certificate" target="_blank" class="action-btn btn-maint" style="text-decoration: none;">📜 Cert</a>
               <button class="action-btn btn-reject" onclick="deleteRecord(${r.id})">Delete</button>
             </td>
           `;
           aBody.appendChild(row);
         }
       });
+    }
+
+    function openEditModal(id) {
+      const rec = allAdminRecords.find(r => r.id === id);
+      if (!rec) return;
+
+      document.getElementById('editId').value = rec.id;
+      document.getElementById('editName').value = rec.name || '';
+      document.getElementById('editAgency').value = rec.agency || '';
+      document.getElementById('editCategory').value = rec.category || 'OTHER';
+      document.getElementById('editDateDeath').value = rec.date_of_death || '';
+      document.getElementById('editCauseDeath').value = rec.cause_of_death || '';
+      document.getElementById('editSurvivingFamily').value = rec.surviving_family || '';
+      document.getElementById('editSummary').value = rec.summary || '';
+      document.getElementById('editStatus').value = rec.status || 'APPROVED';
+
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+    }
+
+    async function saveEditModal(e) {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      const payload = {
+        name: document.getElementById('editName').value.trim(),
+        agency: document.getElementById('editAgency').value.trim(),
+        category: document.getElementById('editCategory').value,
+        date_of_death: document.getElementById('editDateDeath').value.trim(),
+        cause_of_death: document.getElementById('editCauseDeath').value.trim(),
+        surviving_family: document.getElementById('editSurvivingFamily').value.trim(),
+        summary: document.getElementById('editSummary').value.trim(),
+        status: document.getElementById('editStatus').value
+      };
+
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-Admin-Password': staffPass
+        };
+        const res = await fetch(`/api/admin/responders/${id}/update`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert(`✅ Record #${id} Updated Successfully!`);
+          closeEditModal();
+          loadAllData();
+        } else {
+          alert('Failed to update record.');
+        }
+      } catch (err) {
+        alert('Record edit submission error!');
+      }
     }
 
     function filterAdminRecords() {

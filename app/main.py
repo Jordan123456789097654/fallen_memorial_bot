@@ -85,6 +85,17 @@ class CustomMemorialCreate(BaseModel):
     auto_approve: bool = True
 
 
+class MemorialUpdatePayload(BaseModel):
+    name: Optional[str] = None
+    agency: Optional[str] = None
+    category: Optional[str] = None
+    date_of_death: Optional[str] = None
+    cause_of_death: Optional[str] = None
+    surviving_family: Optional[str] = None
+    summary: Optional[str] = None
+    status: Optional[str] = None
+
+
 def verify_staff_password(x_admin_password: str = Header(None)):
     if not x_admin_password or x_admin_password != settings.STAFF_ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid Staff Admin Password")
@@ -993,6 +1004,41 @@ async def admin_reject(id: int, auth: str = Depends(verify_staff_password), db: 
     record.status = ApprovalStatus.REJECTED
     db.commit()
     return {"status": "rejected", "id": id}
+
+
+@app.post("/api/admin/responders/{id}/update", tags=["Staff Admin Portal"])
+async def admin_update_memorial(
+    id: int,
+    payload: MemorialUpdatePayload,
+    auth: str = Depends(verify_staff_password),
+    db: Session = Depends(get_db)
+):
+    """Updates any record field (name, agency, category, EOW, cause of death, family info, summary, status)."""
+    record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Memorial record not found")
+
+    if payload.name: record.name = payload.name.strip()
+    if payload.agency: record.agency = payload.agency.strip()
+    if payload.category:
+        try:
+            record.category = ResponderCategory[payload.category.upper()]
+        except KeyError:
+            pass
+    if payload.date_of_death is not None: record.date_of_death = payload.date_of_death
+    if payload.cause_of_death is not None: record.cause_of_death = payload.cause_of_death
+    if payload.surviving_family is not None: record.surviving_family = payload.surviving_family
+    if payload.summary: record.summary = payload.summary
+    if payload.status:
+        try:
+            record.status = ApprovalStatus[payload.status.upper()]
+        except KeyError:
+            pass
+
+    db.commit()
+    db.refresh(record)
+    logger.info(f"Staff Admin updated record #{record.id} ({record.name})")
+    return {"status": "updated", "record": record.to_dict()}
 
 
 @app.delete("/api/admin/responders/{id}", tags=["Staff Admin Portal"])
