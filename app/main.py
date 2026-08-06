@@ -598,14 +598,14 @@ async def generate_tribute_certificate(
     <body>
 
       <div class="print-bar">
-        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Chairperson:</span>
-        <input type="text" id="chapInput" value="{chap_name}" oninput="updateSignatures()" placeholder="Chairperson Name">
+        <span style="color: #e5c07b; font-weight: 700; font-family: 'Cinzel', serif; font-size: 0.95rem; letter-spacing: 1px;">
+          Official Line-of-Duty Certificate &bull; Serial No. NFRM-2026-#{record.id}
+        </span>
 
-        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Director:</span>
-        <input type="text" id="dirInput" value="{dir_name}" oninput="updateSignatures()" placeholder="Director Name">
-
-        <button class="download-btn" onclick="downloadPDF()">📥 Download PDF</button>
-        <button class="print-btn" onclick="window.print()">🖨️ Print</button>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+          <button class="download-btn" onclick="downloadPDF()">📥 Download PDF File</button>
+          <button class="print-btn" onclick="window.print()">🖨️ Print Certificate</button>
+        </div>
       </div>
 
       <script>
