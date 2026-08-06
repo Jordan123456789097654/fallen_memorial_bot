@@ -1,7 +1,6 @@
 """
 Main FastAPI Application Entrypoint.
-Concurrently hosts FastAPI REST API, Public Web Memorial Wall, Staff Admin Portal, and discord.py Bot.
-Includes dedicated Render /healthz health check, Custom Memorial Creator, Maintenance Mode, and anti-spam candle rate limiting.
+Concurrently hosts REST API, Web Memorial Wall, Leaflet Map, RSS Feed (/feed.xml), PDF Certificates, Family Claims, and discord.py Bot.
 """
 import io
 import csv
@@ -18,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import init_db, get_db, SessionLocal
-from app.models import ResponderRecord, ApprovalStatus, GuildConfig, ResponderCategory, Condolence, WebhookSubscription, CandleLog
+from app.models import ResponderRecord, ApprovalStatus, GuildConfig, ResponderCategory, Condolence, WebhookSubscription, CandleLog, FamilyClaim
 from app.bot import bot
 from app.scheduler import start_scheduler, stop_scheduler
 from app.scanner import scan_news_sources, post_approved_memorial
@@ -30,6 +29,13 @@ from app.utils.logger import logger
 class CondolenceCreate(BaseModel):
     author_name: str
     message: str
+
+
+class FamilyClaimCreate(BaseModel):
+    claimer_name: str
+    relationship_type: str
+    claimer_email: str
+    notes: Optional[str] = None
 
 
 class WebhookSubscribeRequest(BaseModel):
@@ -54,6 +60,9 @@ class CustomMemorialCreate(BaseModel):
     date_of_incident: Optional[str] = None
     date_of_death: Optional[str] = None
     summary: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    photo_url: Optional[str] = None
     k9_handler_name: Optional[str] = None
     k9_breed: Optional[str] = None
     service_years: Optional[str] = None
@@ -75,9 +84,7 @@ def verify_staff_password(x_admin_password: str = Header(None)):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    FastAPI Lifespan handler for concurrent bot execution and scheduler management.
-    """
+    """FastAPI Lifespan handler for concurrent bot execution and scheduler management."""
     logger.info("Initializing Fallen Officer Memorial Intelligence System...")
     init_db()
 
@@ -106,7 +113,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Fallen Officer Memorial Intelligence System API",
-    description="Backend API, Web Memorial Wall, Staff Admin Portal, & Multi-Server Intelligence Engine",
+    description="Backend API, Web Memorial Wall, Leaflet Map, RSS Feed, PDF Certificates, & Multi-Server Bot Engine",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -116,18 +123,12 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/healthz", tags=["System Health"])
 async def healthz():
-    """
-    Dedicated health check endpoint for Render.com.
-    """
     return {"status": "ok", "service": "fallen-officer-memorial-system"}
 
 
 @app.get("/", tags=["Web Memorial Wall"])
 @app.get("/wall", tags=["Web Memorial Wall"])
 async def serve_memorial_wall():
-    """
-    Serves the interactive Public Web Memorial Wall dashboard (or Maintenance Screen if enabled).
-    """
     if settings.MAINTENANCE_MODE:
         return HTMLResponse(content="""
         <!DOCTYPE html>
@@ -142,7 +143,7 @@ async def serve_memorial_wall():
         </head>
         <body>
           <h1>🛠️ System Maintenance in Progress</h1>
-          <p>The National Fallen Responder Memorial Wall is currently undergoing scheduled maintenance and updates. Please check back shortly.</p>
+          <p>The National Fallen Responder Memorial Wall is currently undergoing scheduled maintenance. Please check back shortly.</p>
         </body>
         </html>
         """)
@@ -151,10 +152,112 @@ async def serve_memorial_wall():
 
 @app.get("/admin", tags=["Staff Admin Portal"])
 async def serve_admin_portal():
-    """
-    Serves the Staff Web Admin Portal dashboard.
-    """
     return FileResponse("app/static/admin.html")
+
+
+@app.get("/feed.xml", tags=["RSS Webfeed Syndication"])
+async def get_rss_webfeed(db: Session = Depends(get_db)):
+    """Generates an outgoing RSS 2.0 XML feed for news syndication."""
+    records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).order_by(ResponderRecord.id.desc()).limit(25).all()
+
+    items_xml = ""
+    for r in records:
+        pub_date = r.created_at.strftime("%a, %d %b %Y %H:%M:%S GMT") if r.created_at else ""
+        items_xml += f"""
+        <item>
+          <title><![CDATA[In Memoriam: {r.name} ({r.agency})]]></title>
+          <link>{r.article_url}</link>
+          <guid>#{r.id}</guid>
+          <pubDate>{pub_date}</pubDate>
+          <description><![CDATA[{r.ai_memorial_text or r.summary}]]></description>
+          <category>{r.category.value if hasattr(r.category, 'value') else r.category}</category>
+        </item>
+        """
+
+    rss_xml = f"""<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+  <channel>
+    <title>National Fallen Responder Memorial Intelligence Feed</title>
+    <link>https://fallen-responder.onrender.com/wall</link>
+    <description>Official RSS feed of approved emergency responder line-of-duty memorials.</description>
+    <language>en-us</language>
+    {items_xml}
+  </channel>
+</rss>
+"""
+    return Response(content=rss_xml, media_type="application/xml")
+
+
+@app.get("/responders/{id}/certificate", tags=["Printable Certificates"])
+async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
+    """Generates a printable framed HTML/PDF tribute certificate of honor."""
+    record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Memorial record not found.")
+
+    cert_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Certificate of Honor - {record.name}</title>
+      <style>
+        body {{ background: #0c0f17; color: #f0f6fc; font-family: 'Georgia', serif; display: flex; justify-content: center; padding: 2rem; }}
+        .cert-border {{ border: 12px double #e5c07b; padding: 3rem; max-width: 800px; width: 100%; text-align: center; background: #121722; box-shadow: 0 0 50px rgba(229,192,123,0.3); }}
+        h1 {{ font-size: 2.2rem; color: #e5c07b; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.5rem; }}
+        h2 {{ font-size: 1.5rem; color: #ffffff; margin-bottom: 1.5rem; }}
+        .name {{ font-size: 2.5rem; color: #e5c07b; text-decoration: underline; margin: 1.5rem 0; }}
+        p {{ font-size: 1.1rem; line-height: 1.8; color: #c9d1d9; }}
+        .scripture {{ font-style: italic; background: rgba(229,192,123,0.1); padding: 1rem; border-left: 4px solid #e5c07b; margin: 1.5rem 0; }}
+        .footer {{ margin-top: 2.5rem; font-size: 0.9rem; color: #8b949e; border-top: 1px solid #30363d; padding-top: 1rem; }}
+      </style>
+    </head>
+    <body>
+      <div class="cert-border">
+        <h1>NATIONAL CERTIFICATE OF HONOR</h1>
+        <h2>Line-of-Duty Ultimate Sacrifice</h2>
+        <p>This official certificate solemnly attests that</p>
+        <div class="name">{record.name}</div>
+        <p>of the <strong>{record.agency}</strong> gave their life in courageous service and protection of the public.</p>
+        <p><strong>End of Watch:</strong> {record.date_of_death or 'Line of Duty'}</p>
+        {f'<div class="scripture">"{record.bible_verse}"<br>— <strong>{record.bible_reference}</strong></div>' if record.bible_verse else ''}
+        <div class="footer">
+          Sequential Memorial ID: #{record.id} • Verified Honor Roll Record<br>
+          <em>"Greater love has no one than this: to lay down one's life for one's friends."</em>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=cert_html)
+
+
+@app.post("/responders/{id}/claim", tags=["Family Claim Portal"])
+async def submit_family_claim(id: int, payload: FamilyClaimCreate, db: Session = Depends(get_db)):
+    """Submits a claim request by verified family or agency representative."""
+    record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Memorial record not found.")
+
+    claim = FamilyClaim(
+        record_id=id,
+        claimer_name=payload.claimer_name.strip(),
+        relationship_type=payload.relationship_type.strip(),
+        claimer_email=payload.claimer_email.strip(),
+        notes=payload.notes,
+        status="PENDING"
+    )
+    db.add(claim)
+    db.commit()
+    db.refresh(claim)
+    return {"status": "submitted", "claim": claim.to_dict()}
+
+
+@app.get("/api/vigil/live", tags=["Real-Time Candle Vigils"])
+async def get_live_vigil_stats(db: Session = Depends(get_db)):
+    """Fetches global live candle vigil counters."""
+    total_candles = db.query(ResponderRecord).all()
+    c_sum = sum(r.candle_count for r in total_candles)
+    return {"global_candles_lit": c_sum, "active_vigil": True}
 
 
 @app.post("/api/admin/memorials/custom", tags=["Staff Admin Portal"])
@@ -163,9 +266,6 @@ async def create_custom_memorial(
     auth: str = Depends(verify_staff_password),
     db: Session = Depends(get_db)
 ):
-    """
-    Creates a custom memorial entry directly from the Web Staff Admin Portal and broadcasts to Discord & Webhooks.
-    """
     try:
         cat_enum = ResponderCategory[payload.category.upper()]
     except KeyError:
@@ -181,6 +281,9 @@ async def create_custom_memorial(
         date_of_incident=payload.date_of_incident,
         date_of_death=payload.date_of_death or "End of Watch",
         summary=payload.summary or f"Custom staff tribute entry for {payload.name}.",
+        latitude=payload.latitude,
+        longitude=payload.longitude,
+        photo_url=payload.photo_url,
         k9_handler_name=payload.k9_handler_name,
         k9_breed=payload.k9_breed,
         service_years=payload.service_years,
@@ -206,19 +309,12 @@ async def create_custom_memorial(
 
 @app.post("/api/admin/maintenance", tags=["Staff Admin Portal"])
 async def toggle_maintenance_mode(auth: str = Depends(verify_staff_password)):
-    """
-    Toggles system Maintenance Mode on or off from the Staff Web Dashboard.
-    """
     settings.MAINTENANCE_MODE = not settings.MAINTENANCE_MODE
-    logger.info(f"Staff toggled Maintenance Mode: {settings.MAINTENANCE_MODE}")
     return {"status": "updated", "maintenance_mode": settings.MAINTENANCE_MODE}
 
 
 @app.post("/api/admin/login", tags=["Staff Admin Portal"])
 async def admin_login(payload: AdminLoginRequest):
-    """
-    Authenticates staff password for Web Admin Dashboard access.
-    """
     if payload.password != settings.STAFF_ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid Staff Admin Password")
     return {"status": "authenticated", "message": "Welcome to Staff Admin Portal"}
@@ -226,9 +322,6 @@ async def admin_login(payload: AdminLoginRequest):
 
 @app.post("/api/admin/approve/{id}", tags=["Staff Admin Portal"])
 async def admin_approve(id: int, auth: str = Depends(verify_staff_password), db: Session = Depends(get_db)):
-    """
-    Approves a pending draft record from the Web Admin Portal.
-    """
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found")
@@ -243,9 +336,6 @@ async def admin_approve(id: int, auth: str = Depends(verify_staff_password), db:
 
 @app.post("/api/admin/reject/{id}", tags=["Staff Admin Portal"])
 async def admin_reject(id: int, auth: str = Depends(verify_staff_password), db: Session = Depends(get_db)):
-    """
-    Rejects a pending draft record from the Web Admin Portal.
-    """
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found")
@@ -257,9 +347,6 @@ async def admin_reject(id: int, auth: str = Depends(verify_staff_password), db: 
 
 @app.delete("/api/admin/responders/{id}", tags=["Staff Admin Portal"])
 async def admin_delete(id: int, auth: str = Depends(verify_staff_password), db: Session = Depends(get_db)):
-    """
-    Deletes a responder record from the database.
-    """
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found")
@@ -271,9 +358,6 @@ async def admin_delete(id: int, auth: str = Depends(verify_staff_password), db: 
 
 @app.get("/api/status", tags=["System Health"])
 async def get_health_status(db: Session = Depends(get_db)):
-    """
-    System and bot status overview endpoint.
-    """
     total_records = db.query(ResponderRecord).count()
     pending_records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).count()
     approved_records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).count()
@@ -302,9 +386,6 @@ async def get_health_status(db: Session = Depends(get_db)):
 
 @app.get("/stats", tags=["Public Analytics"])
 async def get_analytics_stats(db: Session = Depends(get_db)):
-    """
-    JSON Analytics & Category Breakdown endpoint.
-    """
     total = db.query(ResponderRecord).count()
     approved = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).count()
     pending = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).count()
@@ -324,9 +405,6 @@ async def get_analytics_stats(db: Session = Depends(get_db)):
 
 @app.get("/latest", tags=["Public Memorials"])
 async def get_latest_memorial(db: Session = Depends(get_db)):
-    """
-    Returns the newest approved memorial record in JSON format.
-    """
     record = (
         db.query(ResponderRecord)
         .filter(ResponderRecord.status == ApprovalStatus.APPROVED)
@@ -343,9 +421,6 @@ async def get_latest_memorial(db: Session = Depends(get_db)):
 
 @app.post("/responders/{id}/candle", tags=["Virtual Candles"])
 async def light_candle(id: int, request: Request, db: Session = Depends(get_db)):
-    """
-    Increments virtual candle counter with anti-spam rate limiting (1 candle per IP per responder per 24 hours).
-    """
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
@@ -381,18 +456,12 @@ async def light_candle(id: int, request: Request, db: Session = Depends(get_db))
 
 @app.get("/responders/{id}/condolences", tags=["Virtual Condolences"])
 async def list_condolences(id: int, db: Session = Depends(get_db)):
-    """
-    Retrieves public condolence messages posted for a responder record.
-    """
     condolences = db.query(Condolence).filter(Condolence.record_id == id).order_by(Condolence.id.desc()).all()
     return {"record_id": id, "condolences": [c.to_dict() for c in condolences]}
 
 
 @app.post("/responders/{id}/condolences", tags=["Virtual Condolences"])
 async def post_condolence(id: int, payload: CondolenceCreate, db: Session = Depends(get_db)):
-    """
-    Posts a public condolence message for a responder record.
-    """
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
@@ -411,9 +480,6 @@ async def post_condolence(id: int, payload: CondolenceCreate, db: Session = Depe
 
 @app.get("/responders/{id}/eulogy", tags=["AI Intelligence"])
 async def get_ai_eulogy(id: int, db: Session = Depends(get_db)):
-    """
-    Retrieves an AI-generated solemn eulogy speech for a responder.
-    """
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
@@ -425,9 +491,6 @@ async def get_ai_eulogy(id: int, db: Session = Depends(get_db)):
 
 @app.post("/webhooks/subscribe", tags=["Webhook Subscription API"])
 async def subscribe_webhook(payload: WebhookSubscribeRequest, db: Session = Depends(get_db)):
-    """
-    Registers an external HTTP webhook feed for real-time approved memorial payloads.
-    """
     existing = db.query(WebhookSubscription).filter(WebhookSubscription.url == payload.url).first()
     if existing:
         existing.category_filter = payload.category_filter.upper()
@@ -450,28 +513,11 @@ async def subscribe_webhook(payload: WebhookSubscribeRequest, db: Session = Depe
     return {"status": "created", "subscription": sub.to_dict()}
 
 
-@app.post("/webhooks/unsubscribe", tags=["Webhook Subscription API"])
-async def unsubscribe_webhook(payload: WebhookUnsubscribeRequest, db: Session = Depends(get_db)):
-    """
-    Removes a registered HTTP webhook feed subscription.
-    """
-    sub = db.query(WebhookSubscription).filter(WebhookSubscription.url == payload.url).first()
-    if not sub:
-        raise HTTPException(status_code=404, detail="Webhook subscription URL not found.")
-
-    db.delete(sub)
-    db.commit()
-    return {"status": "removed", "url": payload.url}
-
-
 @app.get("/webhooks", tags=["Admin Data Access"])
 async def list_webhooks(
     api_key: str = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
-    """
-    Lists registered webhook subscriptions (Secured with X-API-Key).
-    """
     subs = db.query(WebhookSubscription).all()
     return {"count": len(subs), "webhooks": [s.to_dict() for s in subs]}
 
@@ -481,9 +527,6 @@ async def list_guilds(
     api_key: str = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
-    """
-    Lists registered server configs (Secured with X-API-Key).
-    """
     configs = db.query(GuildConfig).all()
     return {"count": len(configs), "guilds": [c.to_dict() for c in configs]}
 
@@ -493,9 +536,6 @@ async def list_all_responders(
     api_key: str = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
-    """
-    Lists all responder records in the database (secured with X-API-Key).
-    """
     records = db.query(ResponderRecord).order_by(ResponderRecord.id.desc()).all()
     return {
         "count": len(records),
@@ -509,9 +549,6 @@ async def export_data(
     api_key: str = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
-    """
-    Downloads database records as CSV or JSON file attachment (Secured with X-API-Key).
-    """
     records = db.query(ResponderRecord).order_by(ResponderRecord.id.asc()).all()
     dict_records = [r.to_dict() for r in records]
 
@@ -539,9 +576,6 @@ async def trigger_manual_scan(
     background_tasks: BackgroundTasks,
     api_key: str = Depends(verify_api_key)
 ):
-    """
-    Triggers an immediate background news scan via API call (Secured with X-API-Key).
-    """
     background_tasks.add_task(scan_news_sources, bot=bot)
     return {
         "status": "success",

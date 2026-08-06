@@ -1,5 +1,5 @@
 """
-Google Gemini Implementation of AIProvider with Advanced Multi-Stage Intelligence Prompts.
+Google Gemini Implementation of AIProvider with Advanced Prompts & Multi-Language Translation.
 """
 import json
 import re
@@ -139,6 +139,18 @@ class GeminiProvider(AIProvider):
             f"their legacy of protection, valor, and sacrifice will forever shine as a beacon of light in our community.\n\n"
             f"May peace rest upon their family, strength upon their fellow responders, and everlasting honor upon their memory. Rest in peace, your watch is ended."
         )
+
+    async def translate_memorial(self, text: str, target_language: str) -> str:
+        """Translates memorial text and scripture into Spanish, French, German, or other languages."""
+        if self._initialized and text:
+            try:
+                prompt = f"Translate the following solemn emergency responder memorial tribute text into {target_language}. Maintain reverence and honor:\n\n{text}"
+                response = self.model.generate_content(prompt)
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as e:
+                logger.error(f"Gemini translation error: {e}")
+        return f"[{target_language.upper()} TRANSLATION]: {text}"
 
     async def extract_timeline(self, raw_text: str) -> List[Dict[str, str]]:
         """Extracts a chronological timeline of events."""

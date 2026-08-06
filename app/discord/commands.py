@@ -1,6 +1,6 @@
 """
 Discord Slash Commands Implementation.
-Includes /config subcommands, /setstatus presence modifier, /test_embed generator, Admin Role permission enforcement, and 30+ commands.
+Includes /config subcommands, /setstatus, /test_embed, /translate, /rollcall, and 30+ commands.
 """
 import io
 import csv
@@ -24,15 +24,13 @@ from app.discord.embeds import (
     create_incident_report_embed
 )
 from app.discord.channels import setup_memorial_channels, get_or_create_guild_config
-from app.scanner import scan_news_sources, post_approved_memorial, load_bible_verses
+from app.scanner import scan_news_sources, post_approved_memorial, load_bible_verses, daily_moment_of_silence
 from app.ai import get_ai_provider
 from app.utils.logger import logger
 
 
 def check_admin_permission(interaction: discord.Interaction, db: Session) -> bool:
-    """
-    Checks if interaction user has Guild Administrator permissions OR holds the configured Admin Role.
-    """
+    """Checks if user has Administrator permissions OR configured Admin Role."""
     if not interaction.guild:
         return True
     if interaction.user.guild_permissions.administrator:
@@ -130,43 +128,6 @@ class ConfigGroup(app_commands.Group):
         finally:
             db.close()
 
-    @app_commands.command(name="role", description="Set alert role pinged for pending or new memorials.")
-    @app_commands.describe(role="Select role to ping for alerts (or leave empty to clear)")
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def config_role(self, interaction: discord.Interaction, role: discord.Role = None):
-        await interaction.response.defer(ephemeral=True)
-        db: Session = SessionLocal()
-        try:
-            config = get_or_create_guild_config(db, interaction.guild)
-            config.alert_role_id = str(role.id) if role else None
-            db.commit()
-
-            role_msg = f"<@&{role.id}>" if role else "Cleared"
-            await interaction.followup.send(
-                f"✅ **Alert Role Updated:** Alert role set to {role_msg}.",
-                ephemeral=True
-            )
-        finally:
-            db.close()
-
-    @app_commands.command(name="header", description="Set a custom title header prefix for memorial cards in this server.")
-    @app_commands.describe(header_text="Custom header slogan (e.g. 'HONORING OUR HEROES')")
-    @app_commands.checks.has_permissions(manage_guild=True)
-    async def config_header(self, interaction: discord.Interaction, header_text: str = None):
-        await interaction.response.defer(ephemeral=True)
-        db: Session = SessionLocal()
-        try:
-            config = get_or_create_guild_config(db, interaction.guild)
-            config.custom_header = header_text
-            db.commit()
-
-            await interaction.followup.send(
-                f"✅ **Custom Header Updated:** Set to `{header_text or 'None'}`.",
-                ephemeral=True
-            )
-        finally:
-            db.close()
-
     @app_commands.command(name="setup", description="Re-run category and channel structure setup for this server.")
     @app_commands.checks.has_permissions(manage_guild=True)
     async def config_setup(self, interaction: discord.Interaction):
@@ -182,6 +143,39 @@ def register_slash_commands(bot: discord.Client):
     """Registers all slash commands and command groups on the bot command tree."""
 
     bot.tree.add_command(ConfigGroup())
+
+    @bot.tree.command(name="translate", description="Translate a memorial announcement into Spanish, French, or another language.")
+    @app_commands.describe(
+        memorial_id="Target memorial ID",
+        language="Target language (e.g. Spanish, French, German, Italian)"
+    )
+    async def translate_cmd(interaction: discord.Interaction, memorial_id: int, language: str):
+        await interaction.response.defer(ephemeral=False)
+        db: Session = SessionLocal()
+        try:
+            record = db.query(ResponderRecord).filter(ResponderRecord.id == memorial_id).first()
+            if not record:
+                await interaction.followup.send(f"❌ Memorial Record ID `#{memorial_id}` not found.")
+                return
+
+            ai_provider = get_ai_provider()
+            translated = await ai_provider.translate_memorial(record.ai_memorial_text or record.summary, language)
+
+            embed = discord.Embed(
+                title=f"🌐 [{language.upper()} TRANSLATION] — {record.name}",
+                description=translated,
+                color=discord.Color.blue()
+            )
+            embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Original: English")
+            await interaction.followup.send(embed=embed)
+        finally:
+            db.close()
+
+    @bot.tree.command(name="rollcall", description="Trigger or view today's Moment of Silence Roll Call of Honor.")
+    async def rollcall_cmd(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=False)
+        await interaction.followup.send("🕯️ **Executing Daily Moment of Silence & Roll Call check...**")
+        await daily_moment_of_silence(bot=interaction.client)
 
     @bot.tree.command(name="setstatus", description="Set the bot's rich presence status activity across Discord.")
     @app_commands.describe(
@@ -250,10 +244,6 @@ def register_slash_commands(bot: discord.Client):
                 date_of_incident="2026-08-01",
                 date_of_death="2026-08-02 (End of Watch)",
                 summary="[TEST SAMPLE DRAFT] This is a test announcement to verify channel layout, color codes, and embed permissions.",
-                k9_handler_name="[TEST] Officer Jane Handler" if category.value == "K9" else None,
-                k9_breed="[TEST] German Shepherd" if category.value == "K9" else None,
-                service_years="5 Years" if category.value == "K9" else None,
-                unit_badge="K9-TEST-1" if category.value == "K9" else None,
                 article_title="[TEST] Sample Emergency News Article Title",
                 article_url="https://example.com/test-news-article",
                 source_domain="example.com",
@@ -303,28 +293,6 @@ def register_slash_commands(bot: discord.Client):
         finally:
             db.close()
 
-    @bot.tree.command(name="reject", description="Reject a pending memorial record.")
-    @app_commands.describe(memorial_id="The integer ID of the memorial record to reject")
-    async def reject_cmd(interaction: discord.Interaction, memorial_id: int):
-        await interaction.response.defer(ephemeral=False)
-        db: Session = SessionLocal()
-        try:
-            if not check_admin_permission(interaction, db):
-                await interaction.followup.send("❌ You must have Administrator permissions or the configured Admin Role to run this command.", ephemeral=True)
-                return
-
-            record = db.query(ResponderRecord).filter(ResponderRecord.id == memorial_id).first()
-            if not record:
-                await interaction.followup.send(f"❌ Memorial Record ID `#{memorial_id}` not found.")
-                return
-
-            record.status = ApprovalStatus.REJECTED
-            db.commit()
-
-            await interaction.followup.send(f"🚫 **Rejected Memorial ID `#{record.id}`** ({record.name}).")
-        finally:
-            db.close()
-
     @bot.tree.command(name="status", description="Show system health, latency, and database record counters.")
     async def status_cmd(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=False)
@@ -333,7 +301,6 @@ def register_slash_commands(bot: discord.Client):
             total_records = db.query(ResponderRecord).count()
             pending_count = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).count()
             approved_count = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).count()
-            rejected_count = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.REJECTED).count()
 
             guild_cfg = get_or_create_guild_config(db, interaction.guild)
 
@@ -344,89 +311,9 @@ def register_slash_commands(bot: discord.Client):
             )
             embed.add_field(name="Bot Latency", value=f"{round(bot.latency * 1000)} ms", inline=True)
             embed.add_field(name="Approval Mode", value=f"`{guild_cfg.approval_mode}`", inline=True)
-            embed.add_field(name="Admin Role", value=f"<@&{guild_cfg.admin_role_id}>" if guild_cfg.admin_role_id else "`Administrators Only`", inline=True)
-            embed.add_field(name="Bot Nickname", value=f"`{guild_cfg.bot_nickname or 'Default'}`", inline=True)
             embed.add_field(name="Total Memorials", value=str(total_records), inline=True)
             embed.add_field(name="Pending Review", value=str(pending_count), inline=True)
             embed.add_field(name="Approved", value=str(approved_count), inline=True)
-            embed.set_footer(text="Fallen Officer Memorial Intelligence System v1.0")
-
-            await interaction.followup.send(embed=embed)
-        finally:
-            db.close()
-
-    @bot.tree.command(name="ping", description="Test system response time and API latency.")
-    async def ping_cmd(interaction: discord.Interaction):
-        start_t = time.time()
-        await interaction.response.defer(ephemeral=True)
-        end_t = time.time()
-        latency = round(bot.latency * 1000)
-        roundtrip = round((end_t - start_t) * 1000)
-        await interaction.followup.send(
-            f"🏓 **Pong!** WebSocket Latency: `{latency} ms` | API Roundtrip: `{roundtrip} ms`",
-            ephemeral=True
-        )
-
-    @bot.tree.command(name="stats", description="Display comprehensive analytics & category breakdown.")
-    async def stats_cmd(interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=False)
-        db: Session = SessionLocal()
-        try:
-            total = db.query(ResponderRecord).count()
-            approved = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).count()
-            pending = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.PENDING).count()
-
-            by_cat = {}
-            for cat in ResponderCategory:
-                cnt = db.query(ResponderRecord).filter(ResponderRecord.category == cat).count()
-                if cnt > 0:
-                    by_cat[cat.value] = cnt
-
-            stats_data = {
-                "total": total,
-                "approved": approved,
-                "pending": pending,
-                "by_category": by_cat
-            }
-
-            embed = create_stats_embed(stats_data)
-            await interaction.followup.send(embed=embed)
-        finally:
-            db.close()
-
-    @bot.tree.command(name="search", description="Search database by responder name, agency, or keyword.")
-    @app_commands.describe(query="Search keyword (e.g. name, agency, city)")
-    async def search_cmd(interaction: discord.Interaction, query: str):
-        await interaction.response.defer(ephemeral=False)
-        db: Session = SessionLocal()
-        try:
-            results = (
-                db.query(ResponderRecord)
-                .filter(
-                    or_(
-                        ResponderRecord.name.ilike(f"%{query}%"),
-                        ResponderRecord.agency.ilike(f"%{query}%"),
-                        ResponderRecord.summary.ilike(f"%{query}%")
-                    )
-                )
-                .limit(5)
-                .all()
-            )
-
-            if not results:
-                await interaction.followup.send(f"🔍 No memorial records found matching query: `{query}`.")
-                return
-
-            embed = discord.Embed(
-                title=f"🔍 Search Results for '{query}' ({len(results)} matches)",
-                color=discord.Color.blue()
-            )
-            for rec in results:
-                embed.add_field(
-                    name=f"ID #{rec.id} — {rec.name}",
-                    value=f"**Agency:** {rec.agency}\n**Category:** {rec.category}\n**Status:** {rec.status.value}\n[Source Link]({rec.article_url})",
-                    inline=False
-                )
 
             await interaction.followup.send(embed=embed)
         finally:
@@ -447,22 +334,17 @@ def register_slash_commands(bot: discord.Client):
                 "• `/config admin_role <role>` — Set designated Admin Role for commands.\n"
                 "• `/config bot_nickname <name>` — Edit bot server nickname.\n"
                 "• `/config mode` — Toggle approval mode (MANUAL or AUTO).\n"
-                "• `/config role` — Set alert role to ping for new memorials.\n"
-                "• `/config header` — Set custom server header for embeds.\n"
                 "• `/config setup` — Re-run channel auto-creation."
             ),
             inline=False
         )
         embed.add_field(
-            name="🤖 Memorial Management (Restricted)",
+            name="🧠 Advanced AI & Translation",
             value=(
-                "• `/lookup <id>` — View memorial by sequential ID.\n"
-                "• `/approve <id>` — Approve & publish pending memorial.\n"
-                "• `/reject <id>` — Reject pending draft.\n"
-                "• `/edit <id>` — Edit draft details.\n"
-                "• `/remake <id>` — Regenerate AI memorial text.\n"
-                "• `/candle <id>` — Light a virtual candle in Discord.\n"
-                "• `/scan` — Trigger news source check."
+                "• `/translate <id> <language>` — AI translation into Spanish, French, etc.\n"
+                "• `/rollcall` — View/trigger daily Moment of Silence roll call.\n"
+                "• `/test_embed <category>` — Send sample test embed preview.\n"
+                "• `/setstatus <type> <text>` — Update bot presence activity."
             ),
             inline=False
         )

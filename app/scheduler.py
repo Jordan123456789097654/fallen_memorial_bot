@@ -1,11 +1,11 @@
 """
-APScheduler Job Scheduler for Automated News Scans, EOW Anniversaries, and Keep-Alive Self-Pings.
+APScheduler Job Scheduler for Automated News Scans, Daily Roll Call, and Keep-Alive Self-Pings.
 """
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from app.config import settings
-from app.scanner import scan_news_sources, self_ping_keep_alive
+from app.scanner import scan_news_sources, self_ping_keep_alive, daily_moment_of_silence
 from app.utils.logger import logger
 
 scheduler = AsyncIOScheduler()
@@ -25,6 +25,15 @@ def start_scheduler(bot=None):
         replace_existing=True
     )
 
+    # Daily Moment of Silence & Roll Call Check (Every morning at 08:00 AM)
+    scheduler.add_job(
+        daily_moment_of_silence,
+        trigger=CronTrigger(hour=8, minute=0),
+        kwargs={"bot": bot},
+        id="daily_roll_call_job",
+        replace_existing=True
+    )
+
     # 5-Minute Self-Ping Keep-Alive Worker to prevent Render Web App spin-down
     scheduler.add_job(
         self_ping_keep_alive,
@@ -34,7 +43,7 @@ def start_scheduler(bot=None):
     )
 
     scheduler.start()
-    logger.info(f"APScheduler started. News scan interval: {settings.SCAN_INTERVAL_HOURS}h | Keep-Alive interval: 5m")
+    logger.info(f"APScheduler started. News scan: {settings.SCAN_INTERVAL_HOURS}h | Daily Roll Call: 08:00 AM | Keep-Alive: 5m")
 
 
 def stop_scheduler():

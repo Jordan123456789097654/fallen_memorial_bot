@@ -1,7 +1,8 @@
 """
-X (Twitter) & BlueSky Social Media Publisher.
+X (Twitter), BlueSky, Telegram, and Mastodon Social Media Publisher.
 Automatically formats and broadcasts approved memorial posts and EOW anniversaries.
 """
+import os
 import datetime
 import aiohttp
 from typing import Dict, Any
@@ -10,13 +11,13 @@ from app.utils.logger import logger
 
 
 class SocialPublisher:
-    """Social Media Publisher for X (Twitter) and BlueSky."""
+    """Social Media Publisher for X, BlueSky, Telegram, and Mastodon."""
 
     def __init__(self):
         self.enabled = settings.ENABLE_SOCIAL_POSTING
 
     async def publish_memorial(self, record_dict: Dict[str, Any]):
-        """Formats and posts approved memorial tribute to X and BlueSky."""
+        """Formats and posts approved memorial tribute across all social channels."""
         if not self.enabled:
             return
 
@@ -35,6 +36,8 @@ class SocialPublisher:
 
         await self._post_to_x(post_text)
         await self._post_to_bluesky(post_text)
+        await self._post_to_telegram(post_text)
+        await self._post_to_mastodon(post_text)
 
     async def publish_anniversary(self, record_dict: Dict[str, Any], years_ago: int):
         """Posts EOW anniversary reminder to social media."""
@@ -55,9 +58,48 @@ class SocialPublisher:
 
         await self._post_to_x(post_text)
         await self._post_to_bluesky(post_text)
+        await self._post_to_telegram(post_text)
+        await self._post_to_mastodon(post_text)
+
+    async def _post_to_telegram(self, text: str):
+        """Posts message to Telegram Channel via Telegram Bot API."""
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        if not token or not chat_id:
+            logger.info(f"[Social Simulation - Telegram]: {text[:80]}...")
+            return
+
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, timeout=10) as resp:
+                    if resp.status == 200:
+                        logger.info("Successfully posted memorial tribute to Telegram channel.")
+        except Exception as e:
+            logger.error(f"Error posting to Telegram: {e}")
+
+    async def _post_to_mastodon(self, text: str):
+        """Posts status update to Mastodon instance API."""
+        server = os.getenv("MASTODON_SERVER")
+        token = os.getenv("MASTODON_ACCESS_TOKEN")
+        if not server or not token:
+            logger.info(f"[Social Simulation - Mastodon]: {text[:80]}...")
+            return
+
+        try:
+            url = f"https://{server}/api/v1/statuses"
+            headers = {"Authorization": f"Bearer {token}"}
+            payload = {"status": text}
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, headers=headers, timeout=10) as resp:
+                    if resp.status in (200, 201):
+                        logger.info("Successfully posted memorial tribute to Mastodon.")
+        except Exception as e:
+            logger.error(f"Error posting to Mastodon: {e}")
 
     async def _post_to_x(self, text: str):
-        """Posts tweet to X (Twitter API v2 REST endpoint or Fallback)."""
+        """Posts tweet to X (Twitter API v2 REST endpoint)."""
         if not settings.X_ACCESS_TOKEN:
             logger.info(f"[Social Simulation - X/Twitter]: {text[:80]}...")
             return

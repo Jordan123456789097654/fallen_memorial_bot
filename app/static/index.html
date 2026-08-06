@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>National Fallen Responder Memorial Wall & Honor Roll</title>
+  <title>National Fallen Responder Memorial Wall & Interactive Map</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
       --bg-dark: #07090e;
@@ -36,7 +38,7 @@
 
     header {
       text-align: center;
-      padding: 3.5rem 1.5rem 2.5rem;
+      padding: 3rem 1.5rem 2rem;
       border-bottom: 1px solid var(--card-border);
       backdrop-filter: blur(12px);
       background: rgba(10, 14, 22, 0.6);
@@ -44,17 +46,17 @@
 
     header h1 {
       font-family: var(--font-serif);
-      font-size: 2.8rem;
+      font-size: 2.6rem;
       color: var(--gold);
       letter-spacing: 3px;
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.5rem;
       text-transform: uppercase;
       text-shadow: 0 0 20px var(--gold-glow);
     }
 
     header p {
       color: var(--muted);
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       max-width: 700px;
       margin: 0 auto;
     }
@@ -62,7 +64,34 @@
     .container {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 2.5rem 1.5rem;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Navigation & View Toggles */
+    .view-toggles {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .toggle-btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 30px;
+      border: 1px solid var(--card-border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .toggle-btn.active {
+      background: var(--gold);
+      color: #000;
+      border-color: var(--gold);
+      box-shadow: 0 0 15px var(--gold-glow);
     }
 
     /* Controls Bar */
@@ -70,7 +99,7 @@
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
-      margin-bottom: 3rem;
+      margin-bottom: 2.5rem;
     }
 
     .search-input {
@@ -83,30 +112,19 @@
       font-size: 1.05rem;
       backdrop-filter: blur(10px);
       outline: none;
-      transition: all 0.25s ease;
     }
 
-    .search-input:focus {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 4px var(--gold-glow);
-    }
-
-    .chips-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.6rem;
-    }
+    .chips-container { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
     .chip-btn {
-      padding: 0.65rem 1.25rem;
+      padding: 0.6rem 1.1rem;
       border-radius: 30px;
       border: 1px solid var(--card-border);
       background: rgba(255, 255, 255, 0.04);
       color: var(--muted);
       cursor: pointer;
       font-weight: 500;
-      font-size: 0.9rem;
-      transition: all 0.25s ease;
+      font-size: 0.85rem;
     }
 
     .chip-btn.active, .chip-btn:hover {
@@ -114,7 +132,6 @@
       color: #000;
       border-color: var(--gold);
       font-weight: 700;
-      box-shadow: 0 0 15px var(--gold-glow);
     }
 
     /* Cards Grid */
@@ -136,12 +153,6 @@
       justify-content: space-between;
     }
 
-    .memorial-card:hover {
-      transform: translateY(-6px);
-      border-color: rgba(229, 192, 123, 0.5);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-    }
-
     .category-tag {
       display: inline-block;
       padding: 0.3rem 0.85rem;
@@ -155,34 +166,9 @@
     .tag-LAW_ENFORCEMENT { background: rgba(77, 147, 255, 0.2); color: #66b0ff; border: 1px solid rgba(77, 147, 255, 0.3); }
     .tag-FIRE { background: rgba(255, 99, 99, 0.2); color: #ff8080; border: 1px solid rgba(255, 99, 99, 0.3); }
     .tag-EMS { background: rgba(87, 217, 141, 0.2); color: #6ee7a0; border: 1px solid rgba(87, 217, 141, 0.3); }
-    .tag-RESCUE { background: rgba(255, 179, 71, 0.2); color: #ffc266; border: 1px solid rgba(255, 179, 71, 0.3); }
     .tag-K9 { background: rgba(245, 213, 107, 0.2); color: #ffe073; border: 1px solid rgba(245, 213, 107, 0.3); }
-    .tag-DISPATCH { background: rgba(192, 132, 252, 0.2); color: #d8b4fe; border: 1px solid rgba(192, 132, 252, 0.3); }
-    .tag-OTHER { background: rgba(156, 163, 175, 0.2); color: #d1d5db; border: 1px solid rgba(156, 163, 175, 0.3); }
 
-    .memorial-card h3 {
-      font-family: var(--font-serif);
-      font-size: 1.45rem;
-      color: var(--gold);
-      margin-bottom: 0.4rem;
-    }
-
-    .memorial-card .agency-name {
-      color: var(--muted);
-      font-weight: 500;
-      font-size: 0.95rem;
-      margin-bottom: 1rem;
-    }
-
-    .memorial-card .tribute-text {
-      font-size: 0.95rem;
-      color: #c9d1d9;
-      margin-bottom: 1.5rem;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
+    .memorial-card h3 { font-family: var(--font-serif); font-size: 1.4rem; color: var(--gold); margin-bottom: 0.4rem; }
 
     .card-actions {
       display: flex;
@@ -201,31 +187,18 @@
       cursor: pointer;
       font-weight: 600;
       font-size: 0.85rem;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
     }
 
-    .candle-button:hover {
-      background: var(--gold);
-      color: #000;
-      box-shadow: 0 0 15px var(--gold-glow);
+    /* Map Container */
+    #mapContainer {
+      height: 550px;
+      border-radius: 20px;
+      border: 1px solid var(--gold);
+      box-shadow: 0 0 30px var(--gold-glow);
+      display: none;
     }
 
-    .view-tribute-btn {
-      color: var(--muted);
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: underline;
-    }
-
-    .view-tribute-btn:hover { color: var(--text); }
-
-    /* Modal Overlay Drawer */
+    /* Drawer Modal */
     .drawer-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -254,63 +227,23 @@
       position: relative;
     }
 
-    .drawer-close {
-      position: absolute;
-      top: 1.5rem; right: 1.5rem;
-      background: none; border: none;
-      color: var(--muted); font-size: 1.5rem;
-      cursor: pointer;
-    }
-
-    .drawer-tabs {
-      display: flex;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--card-border);
-      margin: 1.5rem 0;
-      padding-bottom: 0.5rem;
-    }
-
-    .drawer-tab {
-      background: none; border: none;
-      color: var(--muted);
-      padding: 0.5rem 1rem;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-
-    .drawer-tab.active { color: var(--gold); border-bottom: 2px solid var(--gold); }
-
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    .scripture-box {
-      background: rgba(229, 192, 123, 0.08);
-      border-left: 4px solid var(--gold);
-      padding: 1.25rem;
-      border-radius: 6px;
-      margin: 1.5rem 0;
-      font-style: italic;
-    }
-
-    .condolence-box {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 1rem;
-      margin-top: 0.75rem;
-    }
+    .drawer-close { position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; color: var(--muted); font-size: 1.5rem; cursor: pointer; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>National Fallen Responder Memorial Wall</h1>
-    <p>Honoring the brave Law Enforcement, Firefighters, EMS, Rescue, K9 Heroes, and Dispatchers who made the ultimate sacrifice.</p>
+    <h1>National Fallen Responder Memorial & Map</h1>
+    <p>Honoring Law Enforcement, Firefighters, EMS, Rescue, K9 Heroes, and Dispatchers who made the ultimate sacrifice.</p>
   </header>
 
   <div class="container">
-    <div class="controls-wrapper">
+    <div class="view-toggles">
+      <button class="toggle-btn active" onclick="switchView('cards', this)">📜 Honor Roll Cards View</button>
+      <button class="toggle-btn" onclick="switchView('map', this)">🗺️ Interactive National Memorial Map</button>
+    </div>
+
+    <div class="controls-wrapper" id="controlsBar">
       <input type="text" class="search-input" id="searchBox" placeholder="🔍 Search by responder name, department agency, or state..." onkeyup="filterWall()">
       
       <div class="chips-container">
@@ -318,13 +251,15 @@
         <button class="chip-btn" onclick="selectCategory('LAW_ENFORCEMENT')">Law Enforcement</button>
         <button class="chip-btn" onclick="selectCategory('FIRE')">Fire Service</button>
         <button class="chip-btn" onclick="selectCategory('EMS')">EMS & Paramedics</button>
-        <button class="chip-btn" onclick="selectCategory('RESCUE')">Rescue Personnel</button>
         <button class="chip-btn" onclick="selectCategory('K9')">K9 Heroes</button>
-        <button class="chip-btn" onclick="selectCategory('DISPATCH')">911 Dispatch</button>
       </div>
     </div>
 
+    <!-- Cards Grid -->
     <div class="grid" id="wallGrid"></div>
+
+    <!-- Map View -->
+    <div id="mapContainer"></div>
   </div>
 
   <!-- Detail Drawer Modal -->
@@ -332,25 +267,14 @@
     <div class="drawer-card">
       <button class="drawer-close" onclick="closeDrawer()">✕</button>
       <div id="drawerHeader"></div>
-
-      <div class="drawer-tabs">
-        <button class="drawer-tab active" onclick="switchDrawerTab('tabTribute', this)">📖 Memorial Tribute</button>
-        <button class="drawer-tab" onclick="switchDrawerTab('tabEulogy', this)">🕊️ Formal Eulogy</button>
-        <button class="drawer-tab" onclick="switchDrawerTab('tabTimeline', this)">⏱️ Incident Timeline</button>
-        <button class="drawer-tab" onclick="switchDrawerTab('tabCondolences', this)">💬 Condolence Board</button>
-      </div>
-
-      <div class="tab-content active" id="tabTribute"></div>
-      <div class="tab-content" id="tabEulogy"></div>
-      <div class="tab-content" id="tabTimeline"></div>
-      <div class="tab-content" id="tabCondolences"></div>
+      <div id="drawerBody" style="margin-top: 1.5rem;"></div>
     </div>
   </div>
 
   <script>
     let wallRecords = [];
     let activeCat = 'ALL';
-    let currentRecordId = null;
+    let map = null;
 
     async function fetchWallData() {
       try {
@@ -358,12 +282,6 @@
         if (res.ok) {
           const data = await res.json();
           wallRecords = data.records || [];
-        } else {
-          const latestRes = await fetch('/latest');
-          if (latestRes.ok) {
-            const rec = await latestRes.json();
-            wallRecords = [rec];
-          }
         }
         renderGrid();
       } catch (err) {
@@ -378,16 +296,9 @@
 
       const filtered = wallRecords.filter(r => {
         const matchesCat = activeCat === 'ALL' || r.category === activeCat;
-        const matchesSearch = (r.name || '').toLowerCase().includes(search) || 
-                              (r.agency || '').toLowerCase().includes(search) || 
-                              (r.summary || '').toLowerCase().includes(search);
+        const matchesSearch = (r.name || '').toLowerCase().includes(search) || (r.agency || '').toLowerCase().includes(search);
         return matchesCat && matchesSearch;
       });
-
-      if (filtered.length === 0) {
-        grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color: var(--muted);">No memorial records found matching criteria.</p>`;
-        return;
-      }
 
       filtered.forEach(r => {
         const card = document.createElement('div');
@@ -397,16 +308,53 @@
             <span class="category-tag tag-${r.category}">${r.category.replace('_', ' ')}</span>
             <small style="float: right; color: var(--muted);">ID #${r.id}</small>
             <h3>${r.name}</h3>
-            <div class="agency-name">🏛️ ${r.agency} ${r.date_of_death ? '• EOW: ' + r.date_of_death : ''}</div>
-            <div class="tribute-text">${r.ai_memorial_text || r.summary || ''}</div>
+            <div style="color: var(--muted); margin-bottom: 0.75rem;">🏛️ ${r.agency} • EOW: ${r.date_of_death || 'Line of Duty'}</div>
+            <div style="font-size: 0.95rem; color: #c9d1d9; margin-bottom: 1.25rem;">${r.ai_memorial_text || r.summary || ''}</div>
           </div>
           <div class="card-actions">
             <button class="candle-button" onclick="lightVirtualCandle(${r.id}, event)">🕯️ Light Candle (<span id="cCount-${r.id}">${r.candle_count || 0}</span>)</button>
-            <button class="view-tribute-btn" onclick="openDrawer(${r.id})">View Tribute 📖</button>
+            <a href="/responders/${r.id}/certificate" target="_blank" style="color: var(--gold); font-size: 0.85rem;">📜 Certificate</a>
+            <button style="background:none; border:none; color:var(--text); cursor:pointer;" onclick="openDrawer(${r.id})">Details 📖</button>
           </div>
         `;
         grid.appendChild(card);
       });
+    }
+
+    function switchView(view, btn) {
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (view === 'map') {
+        document.getElementById('wallGrid').style.display = 'none';
+        document.getElementById('controlsBar').style.display = 'none';
+        document.getElementById('mapContainer').style.display = 'block';
+        initMap();
+      } else {
+        document.getElementById('wallGrid').style.display = 'grid';
+        document.getElementById('controlsBar').style.display = 'flex';
+        document.getElementById('mapContainer').style.display = 'none';
+      }
+    }
+
+    function initMap() {
+      if (!map) {
+        map = L.map('mapContainer').setView([37.0902, -95.7129], 4);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(map);
+
+        wallRecords.forEach(r => {
+          const lat = r.latitude || (37.0902 + (Math.random() - 0.5) * 10);
+          const lng = r.longitude || (-95.7129 + (Math.random() - 0.5) * 20);
+          const marker = L.marker([lat, lng]).addTo(map);
+          marker.bindPopup(`
+            <strong style="color: #000;">${r.name}</strong><br>
+            <small style="color: #333;">${r.agency}</small><br>
+            <a href="/responders/${r.id}/certificate" target="_blank">📜 Honor Certificate</a>
+          `);
+        });
+      }
     }
 
     async function lightVirtualCandle(id, event) {
@@ -416,110 +364,21 @@
         if (res.ok) {
           const data = await res.json();
           document.getElementById(`cCount-${id}`).innerText = data.candle_count;
-        } else if (res.status === 429) {
-          alert('You have already lit a candle for this responder today!');
         }
-      } catch (err) {
-        console.error("Candle error:", err);
-      }
+      } catch(e){}
     }
 
-    async function openDrawer(id) {
+    function openDrawer(id) {
       const rec = wallRecords.find(r => r.id === id);
       if (!rec) return;
-      currentRecordId = id;
-
-      document.getElementById('drawerHeader').innerHTML = `
-        <h2 style="font-family: var(--font-serif); color: var(--gold);">${rec.name}</h2>
-        <p style="color: var(--muted);">${rec.agency} • Sequential Memorial ID: #${rec.id}</p>
-      `;
-
-      document.getElementById('tabTribute').innerHTML = `
-        <p style="font-size: 1.05rem;">${rec.ai_memorial_text || rec.summary}</p>
-        ${rec.bible_verse ? `
-          <div class="scripture-box">
-            "${rec.bible_verse}"<br>
-            <strong>— ${rec.bible_reference}</strong>
-          </div>
-        ` : ''}
-      `;
-
-      // Fetch Eulogy
-      try {
-        const eulRes = await fetch(`/responders/${id}/eulogy`);
-        if (eulRes.ok) {
-          const eulData = await eulRes.json();
-          document.getElementById('tabEulogy').innerHTML = `<p style="white-space: pre-line; line-height: 1.8;">${eulData.eulogy}</p>`;
-        }
-      } catch(e) {}
-
-      // Fetch Condolences
-      loadCondolences(id);
-
+      document.getElementById('drawerHeader').innerHTML = `<h2 style="color: var(--gold);">${rec.name}</h2><p style="color: var(--muted);">${rec.agency}</p>`;
+      document.getElementById('drawerBody').innerHTML = `<p style="white-space: pre-line;">${rec.ai_memorial_text || rec.summary}</p>`;
       document.getElementById('drawerModal').classList.add('active');
     }
 
-    async function loadCondolences(id) {
-      try {
-        const res = await fetch(`/responders/${id}/condolences`);
-        if (res.ok) {
-          const data = await res.json();
-          let html = `
-            <form onsubmit="postCondolenceMessage(${id}, event)" style="margin-bottom: 1.5rem;">
-              <input type="text" id="cAuthor" placeholder="Your Name / Department" required style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff; margin-bottom: 0.5rem;">
-              <textarea id="cMessage" rows="3" placeholder="Write a respectful tribute message..." required style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--card-border); background: #000; color: #fff; margin-bottom: 0.5rem;"></textarea>
-              <button type="submit" style="background: var(--gold); color: #000; font-weight: 700; padding: 0.65rem 1.25rem; border-radius: 8px; border: none; cursor: pointer;">Post Condolence</button>
-            </form>
-          `;
-
-          (data.condolences || []).forEach(c => {
-            html += `
-              <div class="condolence-box">
-                <strong>✍️ ${c.author_name}</strong>
-                <p style="font-style: italic; color: #c9d1d9; margin-top: 0.25rem;">"${c.message}"</p>
-              </div>
-            `;
-          });
-          document.getElementById('tabCondolences').innerHTML = html;
-        }
-      } catch(e) {}
-    }
-
-    async function postCondolenceMessage(id, event) {
-      event.preventDefault();
-      const author = document.getElementById('cAuthor').value;
-      const msg = document.getElementById('cMessage').value;
-
-      const res = await fetch(`/responders/${id}/condolences`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: author, message: msg })
-      });
-      if (res.ok) {
-        loadCondolences(id);
-      }
-    }
-
-    function closeDrawer() {
-      document.getElementById('drawerModal').classList.remove('active');
-    }
-
-    function switchDrawerTab(tabId, btn) {
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.drawer-tab').forEach(b => b.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      btn.classList.add('active');
-    }
-
-    function selectCategory(cat) {
-      activeCat = cat;
-      document.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
-      renderGrid();
-    }
-
+    function closeDrawer() { document.getElementById('drawerModal').classList.remove('active'); }
+    function selectCategory(cat) { activeCat = cat; renderGrid(); }
     function filterWall() { renderGrid(); }
-
     window.onload = fetchWallData;
   </script>
 </body>

@@ -1,9 +1,9 @@
 """
-SQLAlchemy database models for Responder Records, Condolences, Candle Logs, Webhooks, and Multi-Guild Configurations.
+SQLAlchemy database models for Responder Records, Condolences, Candle Logs, Webhooks, Family Claims, and Multi-Guild Configurations.
 """
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, Boolean, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -37,6 +37,15 @@ class ResponderRecord(Base):
     date_of_death = Column(String(100), nullable=True)
     summary = Column(Text, nullable=True)
 
+    # Map Coordinates & Photo
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    photo_url = Column(String(1000), nullable=True)
+
+    # Family Claim Portal
+    claimed_by_family = Column(Boolean, default=False)
+    family_contact = Column(String(255), nullable=True)
+
     # K9 Details
     k9_handler_name = Column(String(255), nullable=True)
     k9_breed = Column(String(100), nullable=True)
@@ -66,6 +75,7 @@ class ResponderRecord(Base):
 
     condolences = relationship("Condolence", back_populates="responder", cascade="all, delete-orphan")
     candle_logs = relationship("CandleLog", back_populates="responder", cascade="all, delete-orphan")
+    family_claims = relationship("FamilyClaim", back_populates="responder", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -77,6 +87,10 @@ class ResponderRecord(Base):
             "date_of_incident": self.date_of_incident,
             "date_of_death": self.date_of_death,
             "summary": self.summary,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "photo_url": self.photo_url,
+            "claimed_by_family": self.claimed_by_family,
             "k9_handler_name": self.k9_handler_name,
             "k9_breed": self.k9_breed,
             "service_years": self.service_years,
@@ -89,8 +103,6 @@ class ResponderRecord(Base):
             "ai_memorial_text": self.ai_memorial_text,
             "candle_count": self.candle_count,
             "status": self.status.value if isinstance(self.status, enum.Enum) else self.status,
-            "discord_message_id": self.discord_message_id,
-            "discord_channel_id": self.discord_channel_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -113,6 +125,33 @@ class Condolence(Base):
             "record_id": self.record_id,
             "author_name": self.author_name,
             "message": self.message,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class FamilyClaim(Base):
+    __tablename__ = "family_claims"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    record_id = Column(Integer, ForeignKey("responder_records.id"), nullable=False, index=True)
+    claimer_name = Column(String(255), nullable=False)
+    relationship_type = Column(String(100), nullable=False)
+    claimer_email = Column(String(255), nullable=False)
+    notes = Column(Text, nullable=True)
+    status = Column(String(50), default="PENDING")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    responder = relationship("ResponderRecord", back_populates="family_claims")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "record_id": self.record_id,
+            "claimer_name": self.claimer_name,
+            "relationship_type": self.relationship_type,
+            "claimer_email": self.claimer_email,
+            "notes": self.notes,
+            "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

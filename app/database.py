@@ -33,19 +33,24 @@ def init_db():
 def run_migrations():
     """Executes safe ALTER TABLE statements to add missing columns to pre-existing tables."""
     cols_to_add = [
-        ("admin_role_id", "VARCHAR(100)"),
-        ("bot_nickname", "VARCHAR(100)"),
-        ("enable_keep_alive", "BOOLEAN DEFAULT TRUE")
+        ("guild_configs", "admin_role_id", "VARCHAR(100)"),
+        ("guild_configs", "bot_nickname", "VARCHAR(100)"),
+        ("guild_configs", "enable_keep_alive", "BOOLEAN DEFAULT TRUE"),
+        ("responder_records", "latitude", "DOUBLE PRECISION"),
+        ("responder_records", "longitude", "DOUBLE PRECISION"),
+        ("responder_records", "photo_url", "VARCHAR(1000)"),
+        ("responder_records", "claimed_by_family", "BOOLEAN DEFAULT FALSE"),
+        ("responder_records", "family_contact", "VARCHAR(255)")
     ]
 
-    for col_name, col_type in cols_to_add:
+    for table_name, col_name, col_type in cols_to_add:
         try:
             with engine.begin() as conn:
                 if "postgresql" in db_url or "postgres" in db_url:
-                    conn.execute(text(f"ALTER TABLE guild_configs ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
                 elif "sqlite" in db_url:
-                    conn.execute(text(f"ALTER TABLE guild_configs ADD COLUMN {col_name} {col_type};"))
+                    conn.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {col_name} {col_type};"))
         except Exception as e:
-            logger.debug(f"Migration note for {col_name}: {e}")
+            logger.debug(f"Migration note for {table_name}.{col_name}: {e}")
 
     logger.info("Database schema verification and column migrations completed.")

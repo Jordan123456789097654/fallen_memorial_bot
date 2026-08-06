@@ -1,5 +1,5 @@
 """
-News Scanner Automation, Webhook Broadcaster, Multi-Guild Broadcaster, and Self-Ping Worker.
+News Scanner Automation, Webhook Broadcaster, Multi-Guild Broadcaster, Daily Moment of Silence Roll Call, and Self-Ping Worker.
 """
 import aiohttp
 import asyncio
@@ -10,13 +10,12 @@ from app.database import SessionLocal
 from app.models import ResponderRecord, ApprovalStatus, GuildConfig, WebhookSubscription, ResponderCategory
 from app.config import settings
 from app.ai import get_ai_provider
-from app.discord.embeds import create_memorial_embed, create_pending_approval_embed
+from app.discord.embeds import create_memorial_embed, create_pending_approval_embed, create_anniversary_embed
 from app.discord.channels import get_or_create_guild_config
 from app.social import SocialPublisher
 from app.utils.logger import logger
 
 import feedparser
-from bs4 import BeautifulSoup
 
 RSS_FEEDS = [
     "https://news.google.com/rss/search?q=officer+killed+line+of+duty&hl=en-US&gl=US&ceid=US:en",
@@ -57,6 +56,46 @@ async def self_ping_keep_alive():
         logger.debug(f"Self-Ping Keep-Alive Heartbeat ping exception (expected if web server starting): {e}")
 
 
+async def daily_moment_of_silence(bot=None):
+    """
+    Scheduled daily roll call job posting morning tributes in Discord for EOW anniversaries today.
+    """
+    logger.info("Running Daily Moment of Silence & Roll Call check...")
+    db: Session = SessionLocal()
+    try:
+        today_str = datetime.utcnow().strftime("%m-%d")
+        records = db.query(ResponderRecord).filter(ResponderRecord.status == ApprovalStatus.APPROVED).all()
+
+        today_matches = []
+        for r in records:
+            if r.date_of_death and today_str in r.date_of_death:
+                today_matches.append(r)
+
+        if not today_matches:
+            logger.info("No EOW anniversary matches found for today's date.")
+            return
+
+        if bot and hasattr(bot, 'guilds'):
+            for guild in bot.guilds:
+                cfg = get_or_create_guild_config(db, guild)
+                logs_ch = None
+                for ch in guild.text_channels:
+                    if ch.name in ("fallen-law-enforcement", "memorials", "bot-logs"):
+                        logs_ch = ch
+                        break
+
+                if logs_ch:
+                    role_ping = f"<@&{cfg.alert_role_id}> " if cfg.alert_role_id else ""
+                    await logs_ch.send(content=f"🕯️ {role_ping}**DAILY MOMENT OF SILENCE & ROLL CALL OF HONOR:**")
+                    for rec in today_matches:
+                        embed = create_anniversary_embed(rec, years_ago=1)
+                        await logs_ch.send(embed=embed)
+    except Exception as e:
+        logger.error(f"Error executing Daily Moment of Silence roll call: {e}")
+    finally:
+        db.close()
+
+
 async def scan_news_sources(bot=None) -> dict:
     """Scans configured RSS news feeds for line-of-duty responder notices."""
     logger.info("Starting automated news source scan...")
@@ -77,21 +116,17 @@ async def scan_news_sources(bot=None) -> dict:
                     article_url = entry.get("link", "")
                     summary = entry.get("summary", "")
 
-                    # Check for duplication
                     existing = db.query(ResponderRecord).filter(ResponderRecord.article_url == article_url).first()
                     if existing:
                         continue
 
-                    # AI Intelligence Extraction
                     extracted = await ai_provider.extract_info(summary, article_title)
                     if not extracted.get("is_fallen_responder", True):
                         continue
 
-                    # Select random scripture verse
                     import random
                     verse = random.choice(verses)
 
-                    # Generate AI Memorial Text
                     memorial_text = await ai_provider.generate_memorial(extracted, verse)
 
                     category_str = extracted.get("category", "OTHER")
@@ -100,7 +135,6 @@ async def scan_news_sources(bot=None) -> dict:
                     except KeyError:
                         category_enum = ResponderCategory.OTHER
 
-                    # Create Database Record
                     record = ResponderRecord(
                         name=extracted.get("name", "Unknown Hero"),
                         agency=extracted.get("agency", "Unknown Agency"),
@@ -125,7 +159,6 @@ async def scan_news_sources(bot=None) -> dict:
                     db.refresh(record)
                     new_records_count += 1
 
-                    # Broadcast pending review embed to connected Discord guilds
                     if bot and hasattr(bot, 'guilds'):
                         await broadcast_pending_review(bot, record)
 
@@ -167,7 +200,6 @@ async def post_approved_memorial(bot, record: ResponderRecord):
     """Broadcasts approved memorial to category channels, webhooks, and social media."""
     db: Session = SessionLocal()
     try:
-        # Guild Broadcaster
         if bot and hasattr(bot, 'guilds'):
             for guild in bot.guilds:
                 cfg = get_or_create_guild_config(db, guild)
@@ -184,10 +216,8 @@ async def post_approved_memorial(bot, record: ResponderRecord):
                     embed = create_memorial_embed(record, custom_header=cfg.custom_header)
                     await target_ch.send(embed=embed)
 
-        # Webhook Broadcaster
         await dispatch_webhooks(record)
 
-        # Social Media Publisher
         social_pub = SocialPublisher()
         await social_pub.publish_memorial(record.to_dict())
 
