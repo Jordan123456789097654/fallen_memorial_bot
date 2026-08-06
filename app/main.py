@@ -810,6 +810,17 @@ async def toggle_maintenance_mode(auth: str = Depends(verify_staff_password)):
     return {"status": "updated", "maintenance_mode": settings.MAINTENANCE_MODE}
 
 
+@app.post("/api/admin/shutdown", tags=["Staff Admin Portal"])
+async def toggle_website_shutdown(auth: str = Depends(verify_staff_password)):
+    settings.SITE_OFFLINE = not settings.SITE_OFFLINE
+    logger.info(f"Staff Admin toggled Website Shutdown state to: {settings.SITE_OFFLINE}")
+    return {
+        "status": "success",
+        "site_offline": settings.SITE_OFFLINE,
+        "message": f"Website shutdown toggled to {'OFFLINE' if settings.SITE_OFFLINE else 'ONLINE'}."
+    }
+
+
 @app.post("/api/admin/login", tags=["Staff Admin Portal"])
 async def admin_login(payload: AdminLoginRequest):
     if payload.password != settings.STAFF_ADMIN_PASSWORD:
