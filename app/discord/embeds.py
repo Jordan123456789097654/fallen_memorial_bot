@@ -141,6 +141,9 @@ def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord
 
 def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
     color = discord.Color.from_rgb(46, 160, 67)
+    category_enum = record.category if isinstance(record.category, ResponderCategory) else ResponderCategory(record.category)
+    cat_display = category_enum.value.replace('_', ' ').title()
+
     name = clean_text(record.name) or "Fallen Emergency Responder"
     agency = clean_text(record.agency) or "Emergency Services Department"
     summary = clean_text(record.article_title or record.summary or "")
@@ -166,7 +169,7 @@ def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
     )
 
     embed.add_field(name="🏛️ Agency", value=agency, inline=True)
-    embed.add_field(name="🛡️ Category", value=str(record.category), inline=True)
+    embed.add_field(name="🛡️ Category", value=cat_display, inline=True)
     embed.add_field(name="🕯️ Date / EOW", value=eow_val, inline=True)
 
     embed.add_field(name="🔗 Source News Article", value=f"[{article_title}]({record.article_url})", inline=False)

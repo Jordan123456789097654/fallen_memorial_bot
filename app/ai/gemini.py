@@ -235,13 +235,13 @@ class GeminiProvider(AIProvider):
         ]
 
     def _fallback_extraction(self, text: str, title: str) -> Dict[str, Any]:
-        """Simple heuristic extraction fallback."""
+        """Smart regex and heuristic extraction fallback for news titles & articles."""
         lower = f"{title} {text}".lower()
 
         category = "OTHER"
-        if any(w in lower for w in ["police", "officer", "sheriff", "trooper", "deputy", "cop"]):
+        if any(w in lower for w in ["police", "officer", "sheriff", "trooper", "deputy", "cop", "patrol"]):
             category = "LAW_ENFORCEMENT"
-        elif any(w in lower for w in ["firefighter", "fire department", "fire captain", "chief"]):
+        elif any(w in lower for w in ["firefighter", "fire department", "fire captain", "chief", "firefighting"]):
             category = "FIRE"
         elif any(w in lower for w in ["paramedic", "emt", "ambulance", "ems"]):
             category = "EMS"
@@ -252,15 +252,39 @@ class GeminiProvider(AIProvider):
         elif any(w in lower for w in ["rescue", "search and rescue"]):
             category = "RESCUE"
 
-        is_fallen = any(w in lower for w in ["died", "killed", "passed away", "end of watch", "eow", "fatal", "tribute", "memorial", "line of duty"])
+        # 1. Smart Name Extraction
+        name_match = re.search(r'\b(Officer|Deputy|Trooper|Detective|Sergeant|Captain|Lieutenant|Chief|Firefighter|Paramedic|K9|K-9)\s+([A-Z][a-z]+\s+[A-Z][a-z]+)', title + " " + text)
+        if name_match:
+            name = f"{name_match.group(1)} {name_match.group(2)}"
+        else:
+            clean_t = re.sub(r'\s*-\s*[A-Za-z0-9\.]+$', '', title).strip()
+            name = clean_t if clean_t else "Fallen Emergency Hero"
+
+        # 2. Smart Agency Extraction
+        agency_match = re.search(r'\b([A-Z][a-zA-Z\s]+(Police|Sheriff|Fire|EMS|State Police|Highway Patrol|Department|Dept|PD))\b', title + " " + text)
+        if agency_match:
+            agency = agency_match.group(1).strip()
+        elif "las vegas" in lower:
+            agency = "Las Vegas Metropolitan Police Department"
+        else:
+            agency = "Emergency Services Department"
+
+        # 3. Date of Death / EOW
+        date_match = re.search(r'\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2}(?:,\s+\d{4})?\b', title + " " + text, re.IGNORECASE)
+        if date_match:
+            eow_date = date_match.group(0)
+        else:
+            eow_date = datetime.utcnow().strftime("%B %d, %Y")
+
+        is_fallen = any(w in lower for w in ["died", "killed", "passed away", "end of watch", "eow", "fatal", "tribute", "memorial", "line of duty", "shootout", "crash"])
 
         return {
             "is_fallen_responder": is_fallen,
-            "name": title.split(":")[-1].strip() if ":" in title else "Fallen Emergency Responder",
-            "agency": "Emergency Services Department",
+            "name": name,
+            "agency": agency,
             "category": category,
-            "date_of_incident": "Recent",
-            "date_of_death": "End of Watch",
+            "date_of_incident": "Recent Line of Duty Incident",
+            "date_of_death": eow_date,
             "summary": title,
             "k9_handler_name": None,
             "k9_breed": None,

@@ -35,6 +35,8 @@ class ResponderRecord(Base):
     category = Column(Enum(ResponderCategory), nullable=False, default=ResponderCategory.OTHER)
     date_of_incident = Column(String(100), nullable=True)
     date_of_death = Column(String(100), nullable=True)
+    cause_of_death = Column(String(500), nullable=True)
+    surviving_family = Column(String(500), nullable=True)
     summary = Column(Text, nullable=True)
 
     # Registry Verification & Awards
