@@ -76,6 +76,27 @@ class GeminiProvider(AIProvider):
             logger.error(f"Gemini API text generation error: {e}")
         return ""
 
+    async def extract_memorial_data(self, scraped_or_text: Any, article_title: str = "") -> Dict[str, Any]:
+        """Alias for extract_info supporting both dict payload and raw_text args."""
+        if isinstance(scraped_or_text, dict):
+            raw_text = scraped_or_text.get("raw_content") or scraped_or_text.get("summary") or ""
+            title = scraped_or_text.get("article_title") or article_title
+            res = await self.extract_info(raw_text, title)
+            res["is_line_of_duty_death"] = res.get("is_fallen_responder", True)
+            return res
+        res = await self.extract_info(str(scraped_or_text), article_title)
+        res["is_line_of_duty_death"] = res.get("is_fallen_responder", True)
+        return res
+
+    async def generate_memorial_text(self, extracted_data: Dict[str, Any], verse: Dict[str, str] = None) -> str:
+        """Alias for generate_memorial."""
+        if verse is None:
+            verse = {
+                "text": "Greater love has no one than this: to lay down one's life for one's friends.",
+                "reference": "John 15:13"
+            }
+        return await self.generate_memorial(extracted_data, verse)
+
     async def extract_info(self, raw_text: str, article_title: str) -> Dict[str, Any]:
         """Parses article text using Gemini or fallback keyword heuristics."""
         combined_text = f"Title: {article_title}\n\nContent:\n{raw_text}"

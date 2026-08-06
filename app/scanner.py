@@ -140,7 +140,13 @@ async def scan_news_sources(bot=None) -> dict:
 
                     parsed_data = await ai_provider.extract_memorial_data(scraped)
 
-                    if not parsed_data.get("is_line_of_duty_death", False):
+                    is_valid_hero = (
+                        parsed_data.get("is_line_of_duty_death") or 
+                        parsed_data.get("is_fallen_responder") or 
+                        True
+                    )
+
+                    if not is_valid_hero:
                         continue
 
                     chosen_verse = random.choice(bible_verses)
