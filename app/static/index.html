@@ -6,17 +6,18 @@
   <title>National Fallen Responder Memorial Wall & Interactive Map</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root {
-      --bg-dark: #07090e;
-      --card-bg: rgba(18, 24, 36, 0.85);
-      --card-border: rgba(229, 192, 123, 0.2);
+      --bg-dark: #06080d;
+      --card-bg: rgba(15, 21, 33, 0.88);
+      --card-border: rgba(229, 192, 123, 0.25);
       --gold: #e5c07b;
       --gold-glow: rgba(229, 192, 123, 0.35);
       --blue: #4d93ff;
+      --green: #2ea043;
       --text: #f0f6fc;
       --muted: #8b949e;
       --font-serif: 'Cinzel', serif;
@@ -28,8 +29,8 @@
     body {
       background-color: var(--bg-dark);
       background-image: 
-        radial-gradient(at 0% 0%, rgba(30, 45, 80, 0.5) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(60, 20, 70, 0.4) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(25, 40, 75, 0.55) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(55, 15, 65, 0.45) 0px, transparent 50%);
       color: var(--text);
       font-family: var(--font-sans);
       min-height: 100vh;
@@ -40,24 +41,25 @@
       text-align: center;
       padding: 3rem 1.5rem 2rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(14px);
-      background: rgba(10, 14, 22, 0.7);
+      backdrop-filter: blur(16px);
+      background: rgba(8, 12, 20, 0.75);
     }
 
     header h1 {
       font-family: var(--font-serif);
-      font-size: 2.6rem;
+      font-size: 2.75rem;
       color: var(--gold);
-      letter-spacing: 3px;
+      letter-spacing: 4px;
       margin-bottom: 0.5rem;
       text-transform: uppercase;
-      text-shadow: 0 0 25px var(--gold-glow);
+      text-shadow: 0 0 30px var(--gold-glow);
+      font-weight: 900;
     }
 
     header p {
       color: var(--muted);
       font-size: 1.1rem;
-      max-width: 700px;
+      max-width: 750px;
       margin: 0 auto;
     }
 
@@ -134,29 +136,45 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
       gap: 2rem;
     }
 
-    /* Glassmorphic Memorial Card Design */
+    /* Premium State-of-the-Art Memorial Card Design */
     .memorial-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 24px;
-      padding: 2rem;
-      backdrop-filter: blur(16px);
+      padding: 0;
+      backdrop-filter: blur(18px);
       transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
       position: relative;
+      overflow: hidden;
+    }
+
+    /* Top Accent Gradient Bar */
+    .card-top-accent {
+      height: 4px;
+      width: 100%;
+      background: linear-gradient(90deg, #e5c07b 0%, #1f6feb 50%, #2ea043 100%);
+    }
+
+    .card-body-padding {
+      padding: 1.85rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
     }
 
     .memorial-card:hover {
-      transform: translateY(-5px);
+      transform: translateY(-6px);
       border-color: var(--gold);
-      box-shadow: 0 15px 35px var(--gold-glow);
+      box-shadow: 0 18px 40px var(--gold-glow);
     }
 
     .card-top {
@@ -192,10 +210,11 @@
 
     .memorial-card h3 {
       font-family: var(--font-serif);
-      font-size: 1.45rem;
+      font-size: 1.5rem;
       color: var(--gold);
       margin-bottom: 0.4rem;
       line-height: 1.3;
+      font-weight: 800;
     }
 
     .dept-line {
@@ -207,11 +226,25 @@
       gap: 0.4rem;
     }
 
+    .verification-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(46, 160, 67, 0.15);
+      border: 1px solid rgba(46, 160, 67, 0.35);
+      color: #56d364;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
     .card-bio {
       font-size: 0.95rem;
       color: #cbd5e0;
       margin-bottom: 1.5rem;
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
     .card-actions {
@@ -223,7 +256,7 @@
     }
 
     .btn-candle {
-      flex: 1;
+      flex: 1.2;
       background: rgba(229, 192, 123, 0.18);
       border: 1px solid rgba(229, 192, 123, 0.5);
       color: var(--gold);
@@ -239,9 +272,11 @@
     .btn-candle:hover {
       background: var(--gold);
       color: #000;
+      box-shadow: 0 0 15px var(--gold-glow);
     }
 
     .btn-cert {
+      flex: 1;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.15);
       color: var(--text);
@@ -384,56 +419,23 @@
     };
 
     const US_FULL_STATES = {
-      "ALABAMA": [32.806671, -86.791130],
-      "ALASKA": [61.370716, -152.404419],
-      "ARIZONA": [33.729759, -111.431221],
-      "ARKANSAS": [34.969704, -92.373123],
-      "CALIFORNIA": [36.116203, -119.681564],
-      "COLORADO": [39.059811, -105.311104],
-      "CONNECTICUT": [41.597782, -72.755371],
-      "DELAWARE": [39.318523, -75.507141],
-      "FLORIDA": [27.766279, -81.686783],
-      "GEORGIA": [33.040619, -83.643074],
-      "HAWAII": [21.094318, -157.498337],
-      "IDAHO": [44.240459, -114.478828],
-      "ILLINOIS": [40.349457, -88.986137],
-      "INDIANA": [39.849426, -86.258278],
-      "IOWA": [42.011539, -93.210526],
-      "KANSAS": [38.526600, -96.726486],
-      "KENTUCKY": [37.668140, -84.670067],
-      "LOUISIANA": [31.169546, -91.867805],
-      "MAINE": [44.693947, -69.381927],
-      "MARYLAND": [39.063946, -76.802101],
-      "MASSACHUSETTS": [42.230171, -71.530106],
-      "MICHIGAN": [43.326618, -84.536095],
-      "MINNESOTA": [45.694454, -93.900192],
-      "MISSISSIPPI": [32.741646, -89.678696],
-      "MISSOURI": [38.456085, -92.288368],
-      "MONTANA": [46.921925, -110.454353],
-      "NEBRASKA": [41.125370, -98.268082],
-      "NEVADA": [38.313515, -117.055374],
-      "NEW HAMPSHIRE": [43.452492, -71.563896],
-      "NEW JERSEY": [40.298960, -74.521011],
-      "NEW MEXICO": [34.840515, -106.248482],
-      "NEW YORK": [42.165726, -74.948051],
-      "NORTH CAROLINA": [35.630066, -79.806419],
-      "NORTH DAKOTA": [47.528912, -99.784012],
-      "OHIO": [40.388783, -82.764915],
-      "OKLAHOMA": [35.565342, -96.928917],
-      "OREGON": [44.572021, -122.070938],
-      "PENNSYLVANIA": [40.590752, -77.209755],
-      "RHODE ISLAND": [41.680893, -71.511780],
-      "SOUTH CAROLINA": [33.856892, -80.945007],
-      "SOUTH DAKOTA": [44.299782, -99.438828],
-      "TENNESSEE": [35.747845, -86.692345],
-      "TEXAS": [31.054487, -97.563461],
-      "UTAH": [40.150032, -111.862434],
-      "VERMONT": [44.045876, -72.710686],
-      "VIRGINIA": [37.769337, -78.169968],
-      "WASHINGTON": [47.400902, -121.490494],
-      "WEST VIRGINIA": [38.491226, -80.954453],
-      "WISCONSIN": [44.268543, -89.616508],
-      "WYOMING": [42.755966, -107.302490]
+      "ALABAMA": [32.806671, -86.791130], "ALASKA": [61.370716, -152.404419], "ARIZONA": [33.729759, -111.431221],
+      "ARKANSAS": [34.969704, -92.373123], "CALIFORNIA": [36.116203, -119.681564], "COLORADO": [39.059811, -105.311104],
+      "CONNECTICUT": [41.597782, -72.755371], "DELAWARE": [39.318523, -75.507141], "FLORIDA": [27.766279, -81.686783],
+      "GEORGIA": [33.040619, -83.643074], "HAWAII": [21.094318, -157.498337], "IDAHO": [44.240459, -114.478828],
+      "ILLINOIS": [40.349457, -88.986137], "INDIANA": [39.849426, -86.258278], "IOWA": [42.011539, -93.210526],
+      "KANSAS": [38.526600, -96.726486], "KENTUCKY": [37.668140, -84.670067], "LOUISIANA": [31.169546, -91.867805],
+      "MAINE": [44.693947, -69.381927], "MARYLAND": [39.063946, -76.802101], "MASSACHUSETTS": [42.230171, -71.530106],
+      "MICHIGAN": [43.326618, -84.536095], "MINNESOTA": [45.694454, -93.900192], "MISSISSIPPI": [32.741646, -89.678696],
+      "MISSOURI": [38.456085, -92.288368], "MONTANA": [46.921925, -110.454353], "NEBRASKA": [41.125370, -98.268082],
+      "NEVADA": [38.313515, -117.055374], "NEW HAMPSHIRE": [43.452492, -71.563896], "NEW JERSEY": [40.298960, -74.521011],
+      "NEW MEXICO": [34.840515, -106.248482], "NEW YORK": [42.165726, -74.948051], "NORTH CAROLINA": [35.630066, -79.806419],
+      "NORTH DAKOTA": [47.528912, -99.784012], "OHIO": [40.388783, -82.764915], "OKLAHOMA": [35.565342, -96.928917],
+      "OREGON": [44.572021, -122.070938], "PENNSYLVANIA": [40.590752, -77.209755], "RHODE ISLAND": [41.680893, -71.511780],
+      "SOUTH CAROLINA": [33.856892, -80.945007], "SOUTH DAKOTA": [44.299782, -99.438828], "TENNESSEE": [35.747845, -86.692345],
+      "TEXAS": [31.054487, -97.563461], "UTAH": [40.150032, -111.862434], "VERMONT": [44.045876, -72.710686],
+      "VIRGINIA": [37.769337, -78.169968], "WASHINGTON": [47.400902, -121.490494], "WEST VIRGINIA": [38.491226, -80.954453],
+      "WISCONSIN": [44.268543, -89.616508], "WYOMING": [42.755966, -107.302490]
     };
 
     const US_STATE_CODES = {
@@ -513,20 +515,27 @@
         card.className = 'memorial-card';
         const thumbUrl = r.photo_url || CATEGORY_THUMBNAILS[r.category] || CATEGORY_THUMBNAILS["OTHER"];
 
+        const isVerified = r.nleomf_verified || r.odmp_verified || r.fire_hero_verified;
+        const verBadgeHtml = isVerified ? `<div class="verification-chip">✅ NLEOMF & ODMP Verified Record</div>` : '';
+
         card.innerHTML = `
-          <div>
-            <div class="card-top">
-              <span class="category-tag tag-${r.category}">${r.category.replace('_', ' ')}</span>
-              <img src="${thumbUrl}" class="card-thumb" alt="${r.category}">
+          <div class="card-top-accent"></div>
+          <div class="card-body-padding">
+            <div>
+              <div class="card-top">
+                <span class="category-tag tag-${r.category}">${r.category.replace('_', ' ')}</span>
+                <img src="${thumbUrl}" class="card-thumb" alt="${r.category}">
+              </div>
+              <h3>${r.name}</h3>
+              <div class="dept-line">🏛️ ${r.agency} • EOW: ${r.date_of_death || 'Line of Duty'}</div>
+              ${verBadgeHtml}
+              <div class="card-bio">${r.ai_memorial_text || r.summary || ''}</div>
             </div>
-            <h3>${r.name}</h3>
-            <div class="dept-line">🏛️ ${r.agency} • EOW: ${r.date_of_death || 'Line of Duty'}</div>
-            <div class="card-bio">${r.ai_memorial_text || r.summary || ''}</div>
-          </div>
-          <div class="card-actions">
-            <button class="btn-candle" onclick="lightVirtualCandle(${r.id}, event)">🕯️ Candle (<span id="cCount-${r.id}">${r.candle_count || 0}</span>)</button>
-            <a href="/responders/${r.id}/certificate" target="_blank" class="btn-cert">📜 Certificate</a>
-            <button class="btn-details" onclick="openDrawer(${r.id})">Details 📖</button>
+            <div class="card-actions">
+              <button class="btn-candle" onclick="lightVirtualCandle(${r.id}, event)">🕯️ Candle (<span id="cCount-${r.id}">${r.candle_count || 0}</span>)</button>
+              <a href="/responders/${r.id}/certificate" target="_blank" class="btn-cert">📜 Certificate</a>
+              <button class="btn-details" onclick="openDrawer(${r.id})">Details 📖</button>
+            </div>
           </div>
         `;
         grid.appendChild(card);

@@ -1,5 +1,6 @@
 """
 Discord Embed Builder for Rich, Human-Grade Memorial Announcements, Incident Reports, & Stats.
+Matches exact reference layout with solemn chaplain prose, scripture blockquotes, and news links.
 """
 import discord
 from datetime import datetime
@@ -7,13 +8,13 @@ from typing import Dict, Any, List
 from app.models import ResponderRecord, ResponderCategory, GuildConfig, ApprovalStatus
 
 CATEGORY_COLORS = {
-    ResponderCategory.LAW_ENFORCEMENT: discord.Color.from_rgb(30, 85, 180),
-    ResponderCategory.FIRE: discord.Color.from_rgb(195, 40, 40),
-    ResponderCategory.EMS: discord.Color.from_rgb(35, 140, 75),
-    ResponderCategory.RESCUE: discord.Color.from_rgb(220, 110, 20),
-    ResponderCategory.K9: discord.Color.from_rgb(215, 165, 50),
-    ResponderCategory.DISPATCH: discord.Color.from_rgb(125, 60, 180),
-    ResponderCategory.OTHER: discord.Color.from_rgb(90, 100, 115),
+    ResponderCategory.LAW_ENFORCEMENT: discord.Color.from_rgb(46, 160, 67),
+    ResponderCategory.FIRE: discord.Color.from_rgb(46, 160, 67),
+    ResponderCategory.EMS: discord.Color.from_rgb(46, 160, 67),
+    ResponderCategory.RESCUE: discord.Color.from_rgb(46, 160, 67),
+    ResponderCategory.K9: discord.Color.from_rgb(46, 160, 67),
+    ResponderCategory.DISPATCH: discord.Color.from_rgb(46, 160, 67),
+    ResponderCategory.OTHER: discord.Color.from_rgb(46, 160, 67),
 }
 
 CATEGORY_THUMBNAILS = {
@@ -40,82 +41,63 @@ def clean_text(val: str) -> str:
 
 def create_memorial_embed(record: ResponderRecord, custom_header: str = None) -> discord.Embed:
     """
-    Constructs a dignified, human-grade Discord Embed for a fallen responder.
-    Clean typography, official badges, and zero robotic phrasing.
+    Constructs an exact match Discord Embed for a fallen responder following the reference screenshot layout.
     """
     category_enum = record.category if isinstance(record.category, ResponderCategory) else ResponderCategory(record.category)
-    color = CATEGORY_COLORS.get(category_enum, discord.Color.blue())
+    color = discord.Color.from_rgb(46, 160, 67)
 
     name = clean_text(record.name) or "Fallen Emergency Responder"
-    agency = clean_text(record.agency) or "Emergency Services"
-    summary = clean_text(record.ai_memorial_text or record.summary)
+    agency = clean_text(record.agency) or "Emergency Services Department"
+    summary = clean_text(record.article_title or record.summary or record.ai_memorial_text or "")
+    article_title = clean_text(record.article_title) or f"Memorial notice for {name}"
+    eow_val = record.date_of_death or "End of Watch"
+    verse = record.bible_verse or "Then I heard the voice of the Lord saying, 'Whom shall I send? And who will go for us?' And I said, 'Here am I. Send me!'"
+    verse_ref = record.bible_reference or "Isaiah 6:8"
 
-    title_prefix = f"[{custom_header}] " if custom_header else "🛡️ IN MEMORIAM: "
-    title = f"{title_prefix}{name}"
+    cat_display = category_enum.value.replace('_', ' ').title()
 
-    embed = discord.Embed(
-        title=title,
-        description=f"**{agency}**\n\n{summary}",
-        color=color,
-        timestamp=datetime.utcnow()
+    title_text = custom_header if custom_header else f"In Memory of {name}"
+    if name == "Fallen Emergency Responder" or "Hero" in name:
+        title_text = f"In Memory of Fallen {cat_display}"
+
+    desc = (
+        f"It is with heavy hearts and profound honor that we remember "
+        f"**{name}** of **{agency}**. {summary}\n\n"
+        f"We honor their noble dedication, courage, and ultimate sacrifice in service to the community. "
+        f"May their bravery never be forgotten, and may comfort rest upon their loved ones, colleagues, and agency.\n\n"
+        f"> *\"{verse}\"*\n"
+        f"> — **{verse_ref}**\n\n"
+        f"**End of Watch / Date:** {eow_val}"
     )
 
-    # Set Thumbnail
-    thumb_url = record.photo_url or CATEGORY_THUMBNAILS.get(category_enum, "https://img.icons8.com/color/96/police-badge.png")
-    embed.set_thumbnail(url=thumb_url)
+    embed = discord.Embed(
+        title=title_text,
+        description=desc,
+        color=color,
+        timestamp=record.created_at or datetime.utcnow()
+    )
 
-    # Department & End of Watch
-    eow_val = record.date_of_death or "End of Watch"
+    # 3 Inline Fields
     embed.add_field(name="🏛️ Agency", value=agency, inline=True)
-    embed.add_field(name="🛡️ Branch", value=category_enum.value.replace('_', ' ').title(), inline=True)
-    embed.add_field(name="🕯️ End of Watch", value=f"**{eow_val}**", inline=True)
+    embed.add_field(name="🛡️ Category", value=cat_display, inline=True)
+    embed.add_field(name="🕯️ Date / EOW", value=eow_val, inline=True)
 
-    if record.date_of_incident and record.date_of_incident != record.date_of_death:
-        embed.add_field(name="📅 Incident Date", value=record.date_of_incident, inline=True)
-
-    # Specialized K9 Profile
-    if category_enum == ResponderCategory.K9 or record.k9_handler_name:
-        k9_info = ""
-        if record.k9_handler_name:
-            k9_info += f"• **Handler:** {record.k9_handler_name}\n"
-        if record.k9_breed:
-            k9_info += f"• **Breed:** {record.k9_breed}\n"
-        if record.service_years:
-            k9_info += f"• **Service:** {record.service_years}\n"
-        if k9_info:
-            embed.add_field(name="🐾 K9 Unit Details", value=k9_info, inline=False)
-
-    # Registry Verification & Medals (Only if genuinely verified)
-    if record.nleomf_verified or record.odmp_verified or record.fire_hero_verified:
-        ver_status = "✅ NLEOMF & ODMP Registry Verified" if (record.nleomf_verified or record.odmp_verified) else "✅ National Fire Hero Verified"
-        awards_str = record.unit_awards or "National Line of Duty Honor Roll"
-        embed.add_field(name="🎖️ Registry Verification", value=f"{ver_status}\n• **Honors:** {awards_str}", inline=False)
-
-    # Scripture Blessing
-    if record.bible_verse and record.bible_reference:
-        embed.add_field(
-            name="📖 Scripture Tribute",
-            value=f"*\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
-            inline=False
-        )
-
-    # Candles Count
-    candles_count = record.candle_count if record.candle_count else 0
-    embed.add_field(name="🕯️ Virtual Candles", value=f"`{candles_count}` lit in honor", inline=True)
-
-    # Links & Resources
-    article_label = clean_text(record.article_title) or "Official Memorial Record"
+    # Scripture Tribute Block
     embed.add_field(
-        name="🔗 Tribute Resources",
-        value=(
-            f"🌐 [Web Wall](https://fallen-memorial-bot.onrender.com/wall) | "
-            f"📜 [Certificate](https://fallen-memorial-bot.onrender.com/responders/{record.id}/certificate) | "
-            f"📰 [{article_label}]({record.article_url})"
-        ),
+        name="📖 Scripture Tribute",
+        value=f"> *\"{verse}\"*\n\n— **{verse_ref}**",
         inline=False
     )
 
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Line of Duty Honor Roll")
+    # Source News Article Field
+    embed.add_field(
+        name="🔗 Source News Article",
+        value=f"[{article_title}]({record.article_url})",
+        inline=False
+    )
+
+    status_str = record.status.value if isinstance(record.status, ApprovalStatus) else record.status
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Status: {status_str}")
     return embed
 
 
@@ -132,9 +114,10 @@ def create_incident_report_embed(record: ResponderRecord, report_text: str) -> d
 
 
 def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord.Embed:
-    category_enum = record.category if isinstance(record.category, ResponderCategory) else ResponderCategory(record.category)
-    color = CATEGORY_COLORS.get(category_enum, discord.Color.blue())
+    color = discord.Color.from_rgb(46, 160, 67)
     year_str = f"{years_ago} Year{'s' if years_ago > 1 else ''} Ago Today" if years_ago > 0 else "Annual Anniversary"
+    verse = record.bible_verse or "Then I heard the voice of the Lord saying, 'Whom shall I send? And who will go for us?' And I said, 'Here am I. Send me!'"
+    verse_ref = record.bible_reference or "Isaiah 6:8"
 
     embed = discord.Embed(
         title=f"🕯️ EOW Anniversary Remembrance — {clean_text(record.name)}",
@@ -146,32 +129,48 @@ def create_anniversary_embed(record: ResponderRecord, years_ago: int) -> discord
     embed.add_field(name="🏛️ Agency", value=clean_text(record.agency), inline=True)
     embed.add_field(name="🕯️ End of Watch", value=record.date_of_death or "Line of Duty", inline=True)
 
-    if record.bible_verse and record.bible_reference:
-        embed.add_field(
-            name="📖 Scripture Tribute",
-            value=f"*\"{record.bible_verse}\"*\n— **{record.bible_reference}**",
-            inline=False
-        )
+    embed.add_field(
+        name="📖 Scripture Tribute",
+        value=f"> *\"{verse}\"*\n\n— **{verse_ref}**",
+        inline=False
+    )
 
     embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Always Remembered")
     return embed
 
 
 def create_pending_approval_embed(record: ResponderRecord) -> discord.Embed:
+    color = discord.Color.from_rgb(46, 160, 67)
+    name = clean_text(record.name) or "Fallen Emergency Responder"
+    agency = clean_text(record.agency) or "Emergency Services Department"
+    summary = clean_text(record.article_title or record.summary or "")
+    article_title = clean_text(record.article_title) or f"Memorial notice for {name}"
+    eow_val = record.date_of_death or "End of Watch"
+    verse = record.bible_verse or "Then I heard the voice of the Lord saying, 'Whom shall I send? And who will go for us?' And I said, 'Here am I. Send me!'"
+    verse_ref = record.bible_reference or "Isaiah 6:8"
+
+    desc = (
+        f"It is with heavy hearts and profound honor that we remember "
+        f"**{name}** of **{agency}**. {summary}\n\n"
+        f"We honor their noble dedication, courage, and ultimate sacrifice in service to the community.\n\n"
+        f"> *\"{verse}\"*\n"
+        f"> — **{verse_ref}**\n\n"
+        f"**End of Watch / Date:** {eow_val}"
+    )
+
     embed = discord.Embed(
         title=f"🚨 [Pending Review] Memorial ID #{record.id}",
-        description=(
-            f"**Name:** {clean_text(record.name)}\n"
-            f"**Agency:** {clean_text(record.agency)}\n"
-            f"**Category:** {record.category}\n\n"
-            f"**Draft Bio:**\n{clean_text(record.ai_memorial_text or record.summary)}"
-        ),
-        color=discord.Color.gold(),
+        description=desc,
+        color=color,
         timestamp=datetime.utcnow()
     )
-    article_label = clean_text(record.article_title) or "Source News Article"
-    embed.add_field(name="Source Article", value=f"[{article_label}]({record.article_url})", inline=False)
-    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} • Click buttons below to approve or reject.")
+
+    embed.add_field(name="🏛️ Agency", value=agency, inline=True)
+    embed.add_field(name="🛡️ Category", value=str(record.category), inline=True)
+    embed.add_field(name="🕯️ Date / EOW", value=eow_val, inline=True)
+
+    embed.add_field(name="🔗 Source News Article", value=f"[{article_title}]({record.article_url})", inline=False)
+    embed.set_footer(text=f"Sequential Memorial ID: #{record.id} | Status: PENDING • Click buttons below to approve or reject.")
     return embed
 
 
@@ -179,7 +178,7 @@ def create_eulogy_embed(record: ResponderRecord, eulogy_text: str) -> discord.Em
     embed = discord.Embed(
         title=f"🕊️ Formal Eulogy Speech — {clean_text(record.name)}",
         description=eulogy_text,
-        color=discord.Color.dark_purple(),
+        color=discord.Color.from_rgb(46, 160, 67),
         timestamp=datetime.utcnow()
     )
     embed.add_field(name="Agency", value=clean_text(record.agency), inline=True)
@@ -192,7 +191,7 @@ def create_timeline_embed(record: ResponderRecord, timeline_events: List[Dict[st
     embed = discord.Embed(
         title=f"⏱️ Incident Timeline — {clean_text(record.name)}",
         description=f"Chronological details for Memorial ID **#{record.id}** ({clean_text(record.agency)})",
-        color=discord.Color.dark_gold(),
+        color=discord.Color.from_rgb(46, 160, 67),
         timestamp=datetime.utcnow()
     )
     for event in timeline_events[:8]:
@@ -209,7 +208,7 @@ def create_stats_embed(stats: Dict[str, Any]) -> discord.Embed:
     embed = discord.Embed(
         title="📊 Intelligence System Analytics & Statistics",
         description="Comprehensive breakdown of emergency responder memorial data.",
-        color=discord.Color.blue(),
+        color=discord.Color.from_rgb(46, 160, 67),
         timestamp=datetime.utcnow()
     )
     embed.add_field(name="Total Memorials", value=str(stats.get("total", 0)), inline=True)
@@ -229,7 +228,7 @@ def create_config_embed(guild: discord.Guild, config: GuildConfig) -> discord.Em
     embed = discord.Embed(
         title=f"⚙️ Server Profile & Configuration — {guild.name}",
         description=f"Per-server settings for Guild ID: `{guild.id}`",
-        color=discord.Color.gold(),
+        color=discord.Color.from_rgb(46, 160, 67),
         timestamp=datetime.utcnow()
     )
     embed.add_field(name="Approval Workflow Mode", value=f"`{config.approval_mode}`", inline=True)

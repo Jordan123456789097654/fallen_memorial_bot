@@ -476,6 +476,7 @@
   <script>
     let staffPass = '';
     let allAdminRecords = [];
+    let certConfigLoaded = false;
 
     async function loginStaff() {
       staffPass = document.getElementById('staffPassInput').value.trim();
@@ -517,6 +518,7 @@
         });
 
         if (res.ok) {
+          certConfigLoaded = false;
           alert('✅ Saved Certificate Signature Names & Titles Successfully!');
         } else {
           alert('Failed to save certificate signature configuration.');
@@ -590,10 +592,22 @@
           document.getElementById('valPending').innerText = s.database_stats.pending_review;
           document.getElementById('valApproved').innerText = s.database_stats.approved;
           document.getElementById('valGuilds').innerText = s.database_stats.configured_servers;
-          if (s.cert_chaplain_name) document.getElementById('certChaplainInput').value = s.cert_chaplain_name;
-          if (s.cert_chaplain_title) document.getElementById('certChapTitleInput').value = s.cert_chaplain_title;
-          if (s.cert_director_name) document.getElementById('certDirectorInput').value = s.cert_director_name;
-          if (s.cert_director_title) document.getElementById('certDirTitleInput').value = s.cert_director_title;
+          
+          if (!certConfigLoaded) {
+            if (s.cert_chaplain_name && document.activeElement !== document.getElementById('certChaplainInput')) {
+              document.getElementById('certChaplainInput').value = s.cert_chaplain_name;
+            }
+            if (s.cert_chaplain_title && document.activeElement !== document.getElementById('certChapTitleInput')) {
+              document.getElementById('certChapTitleInput').value = s.cert_chaplain_title;
+            }
+            if (s.cert_director_name && document.activeElement !== document.getElementById('certDirectorInput')) {
+              document.getElementById('certDirectorInput').value = s.cert_director_name;
+            }
+            if (s.cert_director_title && document.activeElement !== document.getElementById('certDirTitleInput')) {
+              document.getElementById('certDirTitleInput').value = s.cert_director_title;
+            }
+            certConfigLoaded = true;
+          }
         }
 
         const guildRes = await fetch('/guilds?api_key=memorial_secret_admin_key_2026', { headers });

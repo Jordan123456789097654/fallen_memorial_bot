@@ -98,83 +98,89 @@ async def daily_moment_of_silence(bot=None):
 
 async def scan_news_sources(bot=None) -> dict:
     """Scans configured RSS news feeds for line-of-duty responder notices."""
-    logger.info("Starting automated news source scan...")
+    logger.info("Starting automated RSS news feeds scan...")
     db: Session = SessionLocal()
+    ai_provider = get_ai_provider()
+    bible_verses = load_bible_verses()
+
     scanned_count = 0
     new_records_count = 0
 
     try:
-        ai_provider = get_ai_provider()
-        verses = load_bible_verses()
-
         for feed_url in RSS_FEEDS:
             try:
                 feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:10]:
+                for entry in feed.entries[:5]:
                     scanned_count += 1
-                    article_title = entry.get("title", "")
-                    article_url = entry.get("link", "")
+                    link = entry.get("link", "")
+                    title = entry.get("title", "")
                     summary = entry.get("summary", "")
 
-                    existing = db.query(ResponderRecord).filter(ResponderRecord.article_url == article_url).first()
+                    if not link or not title:
+                        continue
+
+                    existing = db.query(ResponderRecord).filter(ResponderRecord.article_url == link).first()
                     if existing:
                         continue
 
-                    extracted = await ai_provider.extract_info(summary, article_title)
-                    if not extracted.get("is_fallen_responder", True):
+                    scraped = {
+                        "article_title": title,
+                        "article_url": link,
+                        "raw_content": f"{title}\n{summary}",
+                        "source_domain": link.split("/")[2] if "//" in link else "google_news"
+                    }
+
+                    parsed_data = await ai_provider.extract_memorial_data(scraped)
+
+                    if not parsed_data.get("is_line_of_duty_death", False):
                         continue
 
-                    import random
-                    verse = random.choice(verses)
+                    chosen_verse = random.choice(bible_verses)
+                    verse_text = chosen_verse.get("text", "Greater love has no one than this...")
+                    verse_ref = chosen_verse.get("reference", "John 15:13")
 
-                    memorial_text = await ai_provider.generate_memorial(extracted, verse)
+                    ai_text = await ai_provider.generate_memorial_text(parsed_data)
 
-                    category_str = extracted.get("category", "OTHER")
+                    cat_str = parsed_data.get("category", "OTHER").upper()
                     try:
-                        category_enum = ResponderCategory[category_str]
+                        cat_enum = ResponderCategory[cat_str]
                     except KeyError:
-                        category_enum = ResponderCategory.OTHER
+                        cat_enum = ResponderCategory.OTHER
 
-                    record = ResponderRecord(
-                        name=extracted.get("name", "Unknown Hero"),
-                        agency=extracted.get("agency", "Unknown Agency"),
-                        category=category_enum,
-                        date_of_incident=extracted.get("date_of_incident"),
-                        date_of_death=extracted.get("date_of_death"),
-                        summary=extracted.get("summary", article_title),
-                        k9_handler_name=extracted.get("k9_handler_name"),
-                        k9_breed=extracted.get("k9_breed"),
-                        service_years=extracted.get("service_years"),
-                        unit_badge=extracted.get("unit_badge"),
-                        article_title=article_title,
-                        article_url=article_url,
-                        source_domain=article_url.split("/")[2] if "/" in article_url else "news",
-                        bible_verse=verse.get("text"),
-                        bible_reference=verse.get("reference"),
-                        ai_memorial_text=memorial_text,
+                    rec = ResponderRecord(
+                        name=parsed_data.get("name", "Unknown Hero"),
+                        agency=parsed_data.get("agency", "Emergency Services"),
+                        category=cat_enum,
+                        date_of_incident=parsed_data.get("date_of_incident"),
+                        date_of_death=parsed_data.get("date_of_death") or "End of Watch",
+                        summary=parsed_data.get("summary") or summary,
+                        article_title=title,
+                        article_url=link,
+                        source_domain=scraped["source_domain"],
+                        bible_verse=verse_text,
+                        bible_reference=verse_ref,
+                        ai_memorial_text=ai_text,
                         status=ApprovalStatus.PENDING
                     )
-                    db.add(record)
+                    db.add(rec)
                     db.commit()
-                    db.refresh(record)
+                    db.refresh(rec)
                     new_records_count += 1
+                    logger.info(f"Discovered new line-of-duty responder: {rec.name} (#{rec.id})")
 
-                    if bot and hasattr(bot, 'guilds'):
-                        await broadcast_pending_review(bot, record)
+                    if bot:
+                        await broadcast_pending_review(bot, rec)
 
-            except Exception as e:
-                logger.error(f"Error scanning feed {feed_url}: {e}")
+            except Exception as fe:
+                logger.error(f"Error parsing feed {feed_url}: {fe}")
 
+        return {"status": "success", "scanned": scanned_count, "new_memorials": new_records_count}
     finally:
         db.close()
-
-    logger.info(f"News scan complete. Scanned {scanned_count} entries. Created {new_records_count} new draft records.")
-    return {"scanned": scanned_count, "new_records": new_records_count}
 
 
 async def broadcast_pending_review(bot, record: ResponderRecord):
     """Broadcasting pending review embed to #bot-logs across all connected guilds."""
-    from app.discord.views import PendingReviewView
     db: Session = SessionLocal()
     try:
         for guild in bot.guilds:
@@ -188,8 +194,7 @@ async def broadcast_pending_review(bot, record: ResponderRecord):
             if logs_ch:
                 embed = create_pending_approval_embed(record)
                 role_ping = f"<@&{cfg.alert_role_id}> " if cfg.alert_role_id else ""
-                view = PendingReviewView(record.id)
-                await logs_ch.send(content=f"🚨 {role_ping}**New Pending Memorial Draft Review:**", embed=embed, view=view)
+                await logs_ch.send(content=f"🚨 {role_ping}**New Pending Memorial Draft Review:**", embed=embed)
     except Exception as e:
         logger.error(f"Error broadcasting pending review: {e}")
     finally:
@@ -214,7 +219,11 @@ async def post_approved_memorial(bot, record: ResponderRecord):
 
                 if target_ch:
                     embed = create_memorial_embed(record, custom_header=cfg.custom_header)
-                    await target_ch.send(embed=embed)
+                    msg = await target_ch.send(embed=embed)
+                    if msg:
+                        record.discord_message_id = str(msg.id)
+                        record.discord_channel_id = str(target_ch.id)
+                        db.commit()
 
         await dispatch_webhooks(record)
 
@@ -223,6 +232,37 @@ async def post_approved_memorial(bot, record: ResponderRecord):
 
     except Exception as e:
         logger.error(f"Error posting approved memorial: {e}")
+    finally:
+        db.close()
+
+
+async def update_posted_discord_embeds(bot, record: ResponderRecord):
+    """
+    Live Updates original posted Discord message embeds when candle count or staff edits occur.
+    """
+    if not bot or not hasattr(bot, 'guilds'):
+        return
+
+    db: Session = SessionLocal()
+    try:
+        for guild in bot.guilds:
+            cfg = get_or_create_guild_config(db, guild)
+            category_name = record.category.value if hasattr(record.category, 'value') else str(record.category)
+            target_channel_name = f"fallen-{category_name.lower().replace('_', '-')}"
+
+            for ch in guild.text_channels:
+                if ch.name in (target_channel_name, "memorials", "fallen-law-enforcement"):
+                    try:
+                        async for msg in ch.history(limit=30):
+                            if msg.author == bot.user and msg.embeds:
+                                if f"#{record.id}" in msg.embeds[0].footer.text or record.name in msg.embeds[0].title:
+                                    updated_embed = create_memorial_embed(record, custom_header=cfg.custom_header)
+                                    await msg.edit(embed=updated_embed)
+                                    logger.info(f"Live updated Discord message #{msg.id} for Record #{record.id}")
+                    except Exception as ex:
+                        logger.debug(f"Error scanning channel {ch.name} for live update: {ex}")
+    except Exception as e:
+        logger.error(f"Error live updating posted Discord embeds: {e}")
     finally:
         db.close()
 

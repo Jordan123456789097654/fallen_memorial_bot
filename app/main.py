@@ -282,6 +282,10 @@ async def generate_tribute_certificate(
     dir_name = director.strip() if director else default_dir
     d_title = dir_title.strip() if dir_title else default_dir_title
 
+    cause_text = record.summary or "Line-of-Duty Ultimate Sacrifice in Protection of the Public"
+    if len(cause_text) > 160:
+        cause_text = cause_text[:160] + "..."
+
     cert_html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -401,7 +405,7 @@ async def generate_tribute_certificate(
           font-size: 1rem;
           color: #4a4a4a;
           font-style: italic;
-          margin-top: 1rem;
+          margin-top: 0.85rem;
         }}
 
         .recipient-name {{
@@ -409,7 +413,7 @@ async def generate_tribute_certificate(
           font-size: 2.4rem;
           color: #b8860b;
           font-weight: 700;
-          margin: 0.75rem 0 0.4rem;
+          margin: 0.65rem 0 0.35rem;
           border-bottom: 2px solid #b8860b;
           display: inline-block;
           padding-bottom: 0.2rem;
@@ -422,10 +426,18 @@ async def generate_tribute_certificate(
         }}
 
         .eow-badge {{
-          font-size: 1.05rem;
+          font-size: 1rem;
           font-weight: 700;
           color: #8b0000;
-          margin-top: 0.6rem;
+          margin-top: 0.5rem;
+        }}
+
+        .cause-duty-box {{
+          font-size: 0.9rem;
+          color: #2c3e50;
+          margin-top: 0.35rem;
+          font-style: italic;
+          font-weight: 600;
         }}
 
         .scripture-box {{
@@ -435,7 +447,7 @@ async def generate_tribute_certificate(
           background: rgba(184, 134, 11, 0.06);
           border-left: 3px solid #b8860b;
           padding: 0.6rem 1.1rem;
-          margin: 0.85rem auto;
+          margin: 0.75rem auto;
           max-width: 660px;
         }}
 
@@ -443,8 +455,8 @@ async def generate_tribute_certificate(
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-top: 1.25rem;
-          padding-top: 0.85rem;
+          margin-top: 1.1rem;
+          padding-top: 0.75rem;
           border-top: 1px solid #d4af37;
         }}
 
@@ -492,7 +504,7 @@ async def generate_tribute_certificate(
         }}
 
         .serial-bar {{
-          margin-top: 0.75rem;
+          margin-top: 0.65rem;
           font-size: 0.75rem;
           color: #666;
           font-family: monospace;
@@ -561,6 +573,7 @@ async def generate_tribute_certificate(
               who gave their life in valiant service, sacrifice, and protection of the public.
             </div>
             <div class="eow-badge">End of Watch: {record.date_of_death or 'Line of Duty'}</div>
+            <div class="cause-duty-box">✝ Duty Details & Sacrifice: {cause_text}</div>
           </div>
 
           {f'<div class="scripture-box">"{record.bible_verse}"<br>— <strong>{record.bible_reference}</strong></div>' if record.bible_verse else ''}
