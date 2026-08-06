@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: fallen-officer-memorial-system
+    runtime: python
+    buildCommand: "./render_build.sh"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /healthz
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: API_KEY
+        sync: false
+      - key: APPROVAL_MODE
+        value: MANUAL
+      - key: SCAN_INTERVAL_HOURS
+        value: "3"
+      - key: DATABASE_URL
+        value: sqlite:////var/data/memorials.db
+    disk:
+      name: memorial-data
+      mountPath: /var/data
+      sizeGB: 1

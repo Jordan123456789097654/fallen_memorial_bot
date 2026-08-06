@@ -1,0 +1,3 @@
+"""
+Discord Module initialization.
+"""
