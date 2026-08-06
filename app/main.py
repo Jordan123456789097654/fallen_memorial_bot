@@ -148,27 +148,110 @@ async def website_shutdown_middleware(request: Request, call_next):
                 status_code=503,
                 content="""
                 <!DOCTYPE html>
-                <html lang="en">
+                <html lang="en" dir="ltr">
                 <head>
-                  <meta charset="UTF-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>503 Service Unavailable | Website Offline</title>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                  <title>fallen-memorial-bot.onrender.com</title>
                   <style>
-                    body { background: #05070a; color: #ff4d4d; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 1.5rem; box-sizing: border-box; }
-                    .offline-card { background: #0d1117; border: 1px solid #30363d; border-radius: 16px; padding: 3rem 2rem; max-width: 520px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
-                    .badge { display: inline-block; background: rgba(255,77,77,0.15); border: 1px solid rgba(255,77,77,0.4); color: #ff6666; padding: 0.4rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem; }
-                    h1 { color: #f0f6fc; font-size: 2rem; margin-bottom: 0.75rem; font-weight: 800; }
-                    p { color: #8b949e; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
-                    a.btn-status { display: inline-block; background: #238636; color: #ffffff; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; font-size: 0.95rem; transition: background 0.2s; }
-                    a.btn-status:hover { background: #2ea043; }
+                    :root {
+                      --bg: #202124;
+                      --text: #e8eaed;
+                      --subtext: #9aa0a6;
+                      --link: #8ab4f8;
+                      --btn-bg: #8ab4f8;
+                      --btn-text: #202124;
+                    }
+                    body {
+                      background-color: var(--bg);
+                      color: var(--text);
+                      font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+                      font-size: 100%;
+                      margin: 0;
+                      padding: 0;
+                      height: 100vh;
+                      display: flex;
+                      justify-content: center;
+                      align-items: center;
+                      box-sizing: border-box;
+                    }
+                    .main-frame {
+                      max-width: 600px;
+                      width: 100%;
+                      padding: 2.5rem 2rem;
+                      box-sizing: border-box;
+                    }
+                    .icon-container {
+                      margin-bottom: 2.5rem;
+                    }
+                    .icon {
+                      width: 48px;
+                      height: 48px;
+                      opacity: 0.85;
+                      cursor: pointer;
+                    }
+                    h1 {
+                      font-size: 1.6rem;
+                      font-weight: 500;
+                      margin: 0 0 1.25rem 0;
+                      color: var(--text);
+                      line-height: 1.3;
+                    }
+                    p {
+                      color: var(--subtext);
+                      font-size: 1.05rem;
+                      line-height: 1.6;
+                      margin: 0 0 0.8rem 0;
+                    }
+                    p a {
+                      color: var(--link);
+                      text-decoration: none;
+                    }
+                    p a:hover {
+                      text-decoration: underline;
+                    }
+                    .error-code {
+                      color: var(--subtext);
+                      font-size: 0.85rem;
+                      margin-top: 1.5rem;
+                      text-transform: uppercase;
+                      letter-spacing: 0.5px;
+                    }
+                    .action-button {
+                      background-color: var(--btn-bg);
+                      color: var(--btn-text);
+                      border: none;
+                      border-radius: 100px;
+                      padding: 0.65rem 1.6rem;
+                      font-size: 0.95rem;
+                      font-weight: 500;
+                      cursor: pointer;
+                      margin-top: 2.5rem;
+                      transition: background-color 0.15s ease;
+                    }
+                    .action-button:hover {
+                      background-color: #aecbfa;
+                    }
                   </style>
                 </head>
                 <body>
-                  <div class="offline-card">
-                    <div class="badge">🔴 503 SERVICE UNAVAILABLE</div>
-                    <h1>Website Completely Offline</h1>
-                    <p>Public access to the National Fallen Responder Memorial Wall and Web API has been completely suspended by staff administration.</p>
-                    <a href="/system-status" class="btn-status">View System Status Page &rarr;</a>
+                  <div class="main-frame">
+                    <div class="icon-container">
+                      <svg class="icon" viewBox="0 0 48 48" fill="none" onclick="window.location.href='/admin'" title="Staff Portal">
+                        <path d="M12 4H30L38 12V44H12V4Z" stroke="#9aa0a6" stroke-width="3" stroke-linejoin="round"/>
+                        <path d="M30 4V12H38" stroke="#9aa0a6" stroke-width="3" stroke-linejoin="round"/>
+                        <circle cx="20" cy="22" r="2.5" fill="#9aa0a6"/>
+                        <circle cx="30" cy="22" r="2.5" fill="#9aa0a6"/>
+                        <path d="M19 32C21 29.5 27 29.5 29 32" stroke="#9aa0a6" stroke-width="3" stroke-linecap="round"/>
+                      </svg>
+                    </div>
+
+                    <h1>This site can’t be reached</h1>
+                    <p>Check if there is a typo in fallen-memorial-bot.onrender.com.</p>
+                    <p>If spelling is correct, <a href="/system-status">try running Windows Network Diagnostics or view status</a>.</p>
+                    <div class="error-code">DNS_PROBE_FINISHED_NXDOMAIN</div>
+
+                    <button class="action-button" onclick="window.location.reload()">Reload</button>
                   </div>
                 </body>
                 </html>
