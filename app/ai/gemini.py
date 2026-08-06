@@ -59,21 +59,35 @@ class GeminiProvider(AIProvider):
                 logger.error(f"Failed to initialize legacy Gemini AI: {e}")
 
     def _generate_text(self, prompt: str) -> str:
-        """Internal helper for generating text across new or legacy Gemini SDKs."""
+        """Internal helper for generating text across new or legacy Gemini SDKs with automatic model fallback."""
         if not self._initialized:
             return ""
-        try:
-            if self.new_client:
-                response = self.new_client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt
-                )
-                return response.text.strip() if response and response.text else ""
-            elif self.legacy_model:
-                response = self.legacy_model.generate_content(prompt)
-                return response.text.strip() if response and response.text else ""
-        except Exception as e:
-            logger.error(f"Gemini API text generation error: {e}")
+
+        models_to_try = [self.model_name, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+        seen = set()
+        unique_models = []
+        for m in models_to_try:
+            clean_m = m.replace("models/", "") if m else ""
+            if clean_m and clean_m not in seen:
+                seen.add(clean_m)
+                unique_models.append(clean_m)
+
+        for m_name in unique_models:
+            try:
+                if self.new_client:
+                    response = self.new_client.models.generate_content(
+                        model=m_name,
+                        contents=prompt
+                    )
+                    if response and response.text:
+                        return response.text.strip()
+                elif self.legacy_model:
+                    response = self.legacy_model.generate_content(prompt)
+                    if response and response.text:
+                        return response.text.strip()
+            except Exception as e:
+                logger.error(f"Gemini API text generation error ({m_name}): {e}")
+                continue
         return ""
 
     async def extract_memorial_data(self, scraped_or_text: Any, article_title: str = "") -> Dict[str, Any]:

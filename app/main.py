@@ -198,9 +198,36 @@ async def get_uptime_status_badge():
     }
 
 
-@app.get("/", tags=["Web Memorial Wall"])
-@app.get("/wall", tags=["Web Memorial Wall"])
-async def serve_memorial_wall():
+@app.api_route("/", methods=["GET", "HEAD"], tags=["Web Memorial Wall"])
+@app.api_route("/wall", methods=["GET", "HEAD"], tags=["Web Memorial Wall"])
+async def serve_memorial_wall(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
+
+    if settings.SITE_OFFLINE:
+        return HTMLResponse(
+            status_code=503,
+            content="""
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Website Offline | Fallen Officer Memorial</title>
+          <style>
+            body { background: #05070a; color: #ff5252; font-family: sans-serif; text-align: center; padding: 6rem 1.5rem; }
+            h1 { font-size: 2.5rem; margin-bottom: 1rem; color: #ff5252; }
+            p { color: #8b949e; font-size: 1.15rem; max-width: 550px; margin: 0 auto; }
+            .badge { display: inline-block; background: rgba(255,82,82,0.15); border: 1px solid #ff5252; padding: 0.5rem 1.25rem; border-radius: 30px; margin-bottom: 2rem; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="badge">🔴 WEBSITE SHUTDOWN & OFFLINE</div>
+          <h1>System Offline</h1>
+          <p>The Fallen Officer Memorial Intelligence System public web access has been turned off by staff administration. Please contact support or staff admins for details.</p>
+        </body>
+        </html>
+        """
+        )
+
     if settings.MAINTENANCE_MODE:
         return HTMLResponse(content="""
         <!DOCTYPE html>

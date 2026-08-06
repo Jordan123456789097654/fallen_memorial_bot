@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # AI Configuration (Google Gemini)
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # Social Media Automation Configuration (X / Twitter & BlueSky)
     ENABLE_SOCIAL_POSTING: bool = True
@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 
     # System Maintenance & Staff Security
     MAINTENANCE_MODE: bool = False
+    SITE_OFFLINE: bool = False
     STAFF_ADMIN_PASSWORD: str = "memorial_staff_2026"
 
     # Backend & Security Settings

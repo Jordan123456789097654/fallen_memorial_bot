@@ -16,6 +16,7 @@ from app.discord.channels import get_or_create_guild_config
 from app.social import SocialPublisher
 from app.utils.logger import logger
 
+import random
 import feedparser
 
 RSS_FEEDS = [
