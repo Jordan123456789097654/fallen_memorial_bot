@@ -127,6 +127,56 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
+@app.middleware("http")
+async def website_shutdown_middleware(request: Request, call_next):
+    if settings.SITE_OFFLINE:
+        path = request.url.path
+        allowed_exact = {
+            "/system-status",
+            "/healthz",
+            "/health",
+            "/ping",
+            "/status",
+            "/api/status",
+            "/admin",
+            "/favicon.ico"
+        }
+        is_allowed = path in allowed_exact or path.startswith("/api/admin/") or path.startswith("/static/")
+
+        if not is_allowed:
+            return HTMLResponse(
+                status_code=503,
+                content="""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>503 Service Unavailable | Website Offline</title>
+                  <style>
+                    body { background: #05070a; color: #ff4d4d; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 1.5rem; box-sizing: border-box; }
+                    .offline-card { background: #0d1117; border: 1px solid #30363d; border-radius: 16px; padding: 3rem 2rem; max-width: 520px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+                    .badge { display: inline-block; background: rgba(255,77,77,0.15); border: 1px solid rgba(255,77,77,0.4); color: #ff6666; padding: 0.4rem 1rem; border-radius: 20px; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem; }
+                    h1 { color: #f0f6fc; font-size: 2rem; margin-bottom: 0.75rem; font-weight: 800; }
+                    p { color: #8b949e; font-size: 1rem; line-height: 1.6; margin-bottom: 2rem; }
+                    a.btn-status { display: inline-block; background: #238636; color: #ffffff; text-decoration: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; font-size: 0.95rem; transition: background 0.2s; }
+                    a.btn-status:hover { background: #2ea043; }
+                  </style>
+                </head>
+                <body>
+                  <div class="offline-card">
+                    <div class="badge">🔴 503 SERVICE UNAVAILABLE</div>
+                    <h1>Website Completely Offline</h1>
+                    <p>Public access to the National Fallen Responder Memorial Wall and Web API has been completely suspended by staff administration.</p>
+                    <a href="/system-status" class="btn-status">View System Status Page &rarr;</a>
+                  </div>
+                </body>
+                </html>
+                """
+            )
+    return await call_next(request)
+
+
 @app.api_route("/healthz", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
 @app.api_route("/health", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
 @app.api_route("/ping", methods=["GET", "HEAD"], tags=["System Health & Uptime"])
