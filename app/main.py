@@ -39,6 +39,13 @@ class FamilyClaimCreate(BaseModel):
     notes: Optional[str] = None
 
 
+class CertificateConfigUpdate(BaseModel):
+    chaplain_name: str
+    chaplain_title: Optional[str] = "Board Chairperson"
+    director_name: str
+    director_title: Optional[str] = "Executive Director"
+
+
 class WebhookSubscribeRequest(BaseModel):
     url: str
     secret: str = None
@@ -215,19 +222,65 @@ async def get_rss_webfeed(db: Session = Depends(get_db)):
     return Response(content=rss_xml, media_type="application/xml")
 
 
+@app.post("/api/admin/certificate/config", tags=["Staff Admin Portal"])
+async def update_certificate_config(
+    payload: CertificateConfigUpdate,
+    auth: str = Depends(verify_staff_password),
+    db: Session = Depends(get_db)
+):
+    """Saves global default Chaplain, Director, and Leadership titles in database."""
+    configs = db.query(GuildConfig).all()
+    c_title = payload.chaplain_title.strip() if payload.chaplain_title else "Board Chairperson"
+    d_title = payload.director_title.strip() if payload.director_title else "Executive Director"
+
+    if not configs:
+        cfg = GuildConfig(
+            guild_id="default_system",
+            cert_chaplain_name=payload.chaplain_name.strip(),
+            cert_chaplain_title=c_title,
+            cert_director_name=payload.director_name.strip(),
+            cert_director_title=d_title
+        )
+        db.add(cfg)
+    else:
+        for cfg in configs:
+            cfg.cert_chaplain_name = payload.chaplain_name.strip()
+            cfg.cert_chaplain_title = c_title
+            cfg.cert_director_name = payload.director_name.strip()
+            cfg.cert_director_title = d_title
+    db.commit()
+    return {
+        "status": "updated",
+        "chaplain_name": payload.chaplain_name,
+        "chaplain_title": c_title,
+        "director_name": payload.director_name,
+        "director_title": d_title
+    }
+
+
 @app.get("/responders/{id}/certificate", tags=["Printable Certificates"])
 async def generate_tribute_certificate(
     id: int,
-    chaplain: Optional[str] = "Rev. Joseph Miller",
-    director: Optional[str] = "Chief Marcus Vance",
+    chaplain: Optional[str] = None,
+    chap_title: Optional[str] = None,
+    director: Optional[str] = None,
+    dir_title: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     record = db.query(ResponderRecord).filter(ResponderRecord.id == id).first()
     if not record:
         raise HTTPException(status_code=404, detail="Memorial record not found.")
 
-    chap_name = chaplain.strip() if chaplain else "Rev. Joseph Miller"
-    dir_name = director.strip() if director else "Chief Marcus Vance"
+    cfg = db.query(GuildConfig).first()
+    default_chap = cfg.cert_chaplain_name if (cfg and cfg.cert_chaplain_name) else "Rev. Joseph Miller"
+    default_chap_title = cfg.cert_chaplain_title if (cfg and cfg.cert_chaplain_title) else "Board Chairperson"
+    default_dir = cfg.cert_director_name if (cfg and cfg.cert_director_name) else "Chief Marcus Vance"
+    default_dir_title = cfg.cert_director_title if (cfg and cfg.cert_director_title) else "Executive Director"
+
+    chap_name = chaplain.strip() if chaplain else default_chap
+    c_title = chap_title.strip() if chap_title else default_chap_title
+    dir_name = director.strip() if director else default_dir
+    d_title = dir_title.strip() if dir_title else default_dir_title
 
     cert_html = f"""
     <!DOCTYPE html>
@@ -252,7 +305,6 @@ async def generate_tribute_certificate(
           min-height: 100vh;
         }}
 
-        /* Print Control Bar */
         .print-bar {{
           position: fixed;
           top: 1rem;
@@ -276,7 +328,7 @@ async def generate_tribute_certificate(
           color: #fff;
           font-size: 0.85rem;
           outline: none;
-          width: 150px;
+          width: 140px;
         }}
 
         .print-btn {{
@@ -303,7 +355,6 @@ async def generate_tribute_certificate(
           font-size: 0.85rem;
         }}
 
-        /* Certificate Paper Sheet */
         .cert-container {{
           width: 960px;
           min-height: 660px;
@@ -399,7 +450,7 @@ async def generate_tribute_certificate(
 
         .sig-block {{
           text-align: center;
-          width: 230px;
+          width: 240px;
         }}
 
         .sig-line {{
@@ -417,7 +468,7 @@ async def generate_tribute_certificate(
           letter-spacing: 1px;
           color: #555;
           font-family: sans-serif;
-          font-weight: 600;
+          font-weight: 700;
         }}
 
         .gold-seal {{
@@ -463,8 +514,8 @@ async def generate_tribute_certificate(
     <body>
 
       <div class="print-bar">
-        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Chaplain:</span>
-        <input type="text" id="chapInput" value="{chap_name}" oninput="updateSignatures()" placeholder="Chaplain Name">
+        <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Chairperson:</span>
+        <input type="text" id="chapInput" value="{chap_name}" oninput="updateSignatures()" placeholder="Chairperson Name">
 
         <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.85rem;">Director:</span>
         <input type="text" id="dirInput" value="{dir_name}" oninput="updateSignatures()" placeholder="Director Name">
@@ -475,8 +526,8 @@ async def generate_tribute_certificate(
 
       <script>
         function updateSignatures() {{
-          const chap = document.getElementById('chapInput').value || 'Rev. Joseph Miller';
-          const dir = document.getElementById('dirInput').value || 'Chief Marcus Vance';
+          const chap = document.getElementById('chapInput').value || '{chap_name}';
+          const dir = document.getElementById('dirInput').value || '{dir_name}';
           document.getElementById('sigChaplain').innerText = chap;
           document.getElementById('sigDirector').innerText = dir;
         }}
@@ -518,7 +569,7 @@ async def generate_tribute_certificate(
             <div class="cert-footer">
               <div class="sig-block">
                 <div class="sig-line" id="sigChaplain">{chap_name}</div>
-                <div class="sig-title">National Chaplain General</div>
+                <div class="sig-title" id="sigChaplainTitle">{c_title}</div>
               </div>
 
               <div class="gold-seal">
@@ -527,7 +578,7 @@ async def generate_tribute_certificate(
 
               <div class="sig-block">
                 <div class="sig-line" id="sigDirector">{dir_name}</div>
-                <div class="sig-title">Director of Registry</div>
+                <div class="sig-title" id="sigDirectorTitle">{d_title}</div>
               </div>
             </div>
 
@@ -699,11 +750,17 @@ async def get_health_status(db: Session = Depends(get_db)):
 
     bot_is_ready = bot.is_ready() if hasattr(bot, 'is_ready') else False
 
+    cfg = db.query(GuildConfig).first()
+
     return {
         "status": "online",
         "maintenance_mode": settings.MAINTENANCE_MODE,
         "system": "Fallen Officer Memorial Intelligence System",
         "version": "1.0.0",
+        "cert_chaplain_name": cfg.cert_chaplain_name if cfg else "Rev. Joseph Miller",
+        "cert_chaplain_title": cfg.cert_chaplain_title if cfg else "Board Chairperson",
+        "cert_director_name": cfg.cert_director_name if cfg else "Chief Marcus Vance",
+        "cert_director_title": cfg.cert_director_title if cfg else "Executive Director",
         "bot_status": {
             "online": bot_is_ready,
             "latency_ms": round(bot.latency * 1000) if bot_is_ready else None,

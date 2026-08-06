@@ -213,6 +213,11 @@ class GuildConfig(Base):
     custom_header = Column(String(255), nullable=True)
     bot_nickname = Column(String(100), nullable=True)
     
+    cert_chaplain_name = Column(String(255), default="Rev. Joseph Miller")
+    cert_chaplain_title = Column(String(255), default="Board Chairperson")
+    cert_director_name = Column(String(255), default="Chief Marcus Vance")
+    cert_director_title = Column(String(255), default="Executive Director")
+
     enable_webhooks = Column(Boolean, default=True)
     enable_social = Column(Boolean, default=True)
     enable_keep_alive = Column(Boolean, default=True)
@@ -231,6 +236,10 @@ class GuildConfig(Base):
             "category_name": self.category_name,
             "custom_header": self.custom_header,
             "bot_nickname": self.bot_nickname,
+            "cert_chaplain_name": self.cert_chaplain_name,
+            "cert_chaplain_title": self.cert_chaplain_title,
+            "cert_director_name": self.cert_director_name,
+            "cert_director_title": self.cert_director_title,
             "enable_webhooks": self.enable_webhooks,
             "enable_social": self.enable_social,
             "enable_keep_alive": self.enable_keep_alive,

@@ -259,6 +259,7 @@
         <li><button class="nav-btn" onclick="showTab('tabCustom', this)">➕ Create Custom Memorial</button></li>
         <li><button class="nav-btn" onclick="showTab('tabPending', this)">🚨 Pending Review Queue</button></li>
         <li><button class="nav-btn" onclick="showTab('tabApproved', this)">📜 Approved Wall Manager</button></li>
+        <li><button class="nav-btn" onclick="showTab('tabCert', this)">📜 Certificate Signatures</button></li>
         <li><button class="nav-btn" onclick="showTab('tabMaintenance', this)">🛠️ System Maintenance</button></li>
         <li><button class="nav-btn" onclick="showTab('tabServers', this)">⚙️ Server & Webhooks</button></li>
       </ul>
@@ -411,16 +412,46 @@
       </div>
     </div>
 
-    <!-- TAB 5: Maintenance & Controls -->
+    <!-- TAB 5: Certificate Signature & Title Settings -->
+    <div class="panel" id="tabCert">
+      <div class="card-panel">
+        <h3>📜 Configure Certificate Signatures & Leadership Titles</h3>
+        <p style="color: var(--muted); margin-bottom: 1.5rem;">Set custom signature names and leadership titles (e.g. Board Chairperson, Executive Director) printed on official certificates.</p>
+        
+        <form onsubmit="saveCertConfig(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Primary Signature Name</label>
+              <input type="text" id="certChaplainInput" placeholder="e.g. Rev. Joseph Miller" required>
+            </div>
+            <div class="form-group">
+              <label>Primary Leadership Title</label>
+              <input type="text" id="certChapTitleInput" placeholder="e.g. Board Chairperson" required>
+            </div>
+            <div class="form-group">
+              <label>Secondary Signature Name</label>
+              <input type="text" id="certDirectorInput" placeholder="e.g. Chief Marcus Vance" required>
+            </div>
+            <div class="form-group">
+              <label>Secondary Leadership Title</label>
+              <input type="text" id="certDirTitleInput" placeholder="e.g. Executive Director" required>
+            </div>
+          </div>
+          <button type="submit" class="action-btn btn-scan" style="margin-top: 1rem; padding: 0.85rem 1.5rem;">💾 Save Certificate Signatures & Titles</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TAB 6: Maintenance & Controls -->
     <div class="panel" id="tabMaintenance">
       <div class="card-panel">
         <h3>🛠️ Maintenance & System Controls</h3>
-        <p style="color: var(--muted); margin: 0.75rem 0 1.5rem;">Toggling Maintenance Mode will display a dignified maintenance message on `/wall` while keeping the `/admin` portal online.</p>
+        <p style="color: var(--muted); margin: 0.75rem 0 1.5rem;">Toggling Maintenance Mode will display a dignified maintenance message on `/wall` and set the Discord Bot status to Do Not Disturb (`dnd`).</p>
         <button class="action-btn btn-maint" style="padding: 0.85rem 1.5rem;" onclick="toggleMaintenance()">Toggle Website Maintenance Mode</button>
       </div>
     </div>
 
-    <!-- TAB 6: Servers & Webhooks -->
+    <!-- TAB 7: Servers & Webhooks -->
     <div class="panel" id="tabServers">
       <div class="card-panel">
         <h3>⚙️ Connected Servers & Webhook Subscriptions</h3>
@@ -463,6 +494,35 @@
         }
       } catch (err) {
         alert('Authentication error!');
+      }
+    }
+
+    async function saveCertConfig(e) {
+      e.preventDefault();
+      const payload = {
+        chaplain_name: document.getElementById('certChaplainInput').value.trim(),
+        chaplain_title: document.getElementById('certChapTitleInput').value.trim(),
+        director_name: document.getElementById('certDirectorInput').value.trim(),
+        director_title: document.getElementById('certDirTitleInput').value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/admin/certificate/config', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Password': staffPass
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          alert('✅ Saved Certificate Signature Names & Titles Successfully!');
+        } else {
+          alert('Failed to save certificate signature configuration.');
+        }
+      } catch (err) {
+        alert('Signature save error!');
       }
     }
 
@@ -530,6 +590,10 @@
           document.getElementById('valPending').innerText = s.database_stats.pending_review;
           document.getElementById('valApproved').innerText = s.database_stats.approved;
           document.getElementById('valGuilds').innerText = s.database_stats.configured_servers;
+          if (s.cert_chaplain_name) document.getElementById('certChaplainInput').value = s.cert_chaplain_name;
+          if (s.cert_chaplain_title) document.getElementById('certChapTitleInput').value = s.cert_chaplain_title;
+          if (s.cert_director_name) document.getElementById('certDirectorInput').value = s.cert_director_name;
+          if (s.cert_director_title) document.getElementById('certDirTitleInput').value = s.cert_director_title;
         }
 
         const guildRes = await fetch('/guilds?api_key=memorial_secret_admin_key_2026', { headers });

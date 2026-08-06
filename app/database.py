@@ -35,6 +35,10 @@ def run_migrations():
     cols_to_add = [
         ("guild_configs", "admin_role_id", "VARCHAR(100)"),
         ("guild_configs", "bot_nickname", "VARCHAR(100)"),
+        ("guild_configs", "cert_chaplain_name", "VARCHAR(255) DEFAULT 'Rev. Joseph Miller'"),
+        ("guild_configs", "cert_chaplain_title", "VARCHAR(255) DEFAULT 'Board Chairperson'"),
+        ("guild_configs", "cert_director_name", "VARCHAR(255) DEFAULT 'Chief Marcus Vance'"),
+        ("guild_configs", "cert_director_title", "VARCHAR(255) DEFAULT 'Executive Director'"),
         ("guild_configs", "enable_keep_alive", "BOOLEAN DEFAULT TRUE"),
         ("responder_records", "latitude", "DOUBLE PRECISION"),
         ("responder_records", "longitude", "DOUBLE PRECISION"),
