@@ -43,8 +43,12 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.92);
       backdrop-filter: blur(12px);
-      display: flex; justify-content: center; align-items: center;
+      display: none; justify-content: center; align-items: center;
       z-index: 9999;
+    }
+
+    .auth-overlay.active {
+      display: flex;
     }
 
     .auth-box {
@@ -239,13 +243,14 @@
 <body>
 
   <!-- Auth Modal -->
-  <div class="auth-overlay" id="authModal">
+  <div class="auth-overlay active" id="authModal">
     <div class="auth-box">
       <h2>🔒 Staff Control Center</h2>
       <p>Enter your administrative staff password to access the control panel.</p>
       <input type="password" id="staffPassInput" placeholder="Staff Admin Password">
       <button class="action-btn btn-scan" style="width: 100%; padding: 0.85rem;" onclick="loginStaff()">Authenticate Portal</button>
     </div>
+  </div>
   <!-- Edit Record Modal -->
   <div class="auth-overlay" id="editModal">
     <div class="auth-box" style="max-width: 650px; text-align: left;">
