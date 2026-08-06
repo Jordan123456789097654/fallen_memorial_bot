@@ -247,9 +247,14 @@ async def website_shutdown_middleware(request: Request, call_next):
                     </div>
 
                     <h1>This site can’t be reached</h1>
-                    <p>Check if there is a typo in fallen-memorial-bot.onrender.com.</p>
-                    <p>If spelling is correct, <a href="/system-status">try running Windows Network Diagnostics or view status</a>.</p>
-                    <div class="error-code">DNS_PROBE_FINISHED_NXDOMAIN</div>
+                    <p><strong>fallen-memorial-bot.onrender.com</strong> took too long to respond.</p>
+                    <p style="margin-top: 1.25rem;">Try:</p>
+                    <ul style="color: var(--subtext); font-size: 1.05rem; line-height: 1.8; margin: 0 0 1rem 1.25rem; padding: 0;">
+                      <li>Checking the connection</li>
+                      <li>Checking the proxy and the firewall</li>
+                      <li><a href="/system-status">Running Windows Network Diagnostics or checking status</a></li>
+                    </ul>
+                    <div class="error-code">ERR_CONNECTION_TIMED_OUT</div>
 
                     <button class="action-button" onclick="window.location.reload()">Reload</button>
                   </div>
