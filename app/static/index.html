@@ -12,10 +12,10 @@
   <style>
     :root {
       --bg-dark: #07090e;
-      --card-bg: rgba(18, 24, 36, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
+      --card-bg: rgba(18, 24, 36, 0.85);
+      --card-border: rgba(229, 192, 123, 0.2);
       --gold: #e5c07b;
-      --gold-glow: rgba(229, 192, 123, 0.3);
+      --gold-glow: rgba(229, 192, 123, 0.35);
       --blue: #4d93ff;
       --text: #f0f6fc;
       --muted: #8b949e;
@@ -28,8 +28,8 @@
     body {
       background-color: var(--bg-dark);
       background-image: 
-        radial-gradient(at 0% 0%, rgba(30, 45, 80, 0.45) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(60, 20, 70, 0.35) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(30, 45, 80, 0.5) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(60, 20, 70, 0.4) 0px, transparent 50%);
       color: var(--text);
       font-family: var(--font-sans);
       min-height: 100vh;
@@ -39,9 +39,9 @@
     header {
       text-align: center;
       padding: 3rem 1.5rem 2rem;
-      border-bottom: 1px solid var(--card-border);
-      backdrop-filter: blur(12px);
-      background: rgba(10, 14, 22, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      background: rgba(10, 14, 22, 0.7);
     }
 
     header h1 {
@@ -51,7 +51,7 @@
       letter-spacing: 3px;
       margin-bottom: 0.5rem;
       text-transform: uppercase;
-      text-shadow: 0 0 20px var(--gold-glow);
+      text-shadow: 0 0 25px var(--gold-glow);
     }
 
     header p {
@@ -138,53 +138,139 @@
       gap: 2rem;
     }
 
+    /* Glassmorphic Memorial Card Design */
     .memorial-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 1.85rem;
-      backdrop-filter: blur(14px);
-      transition: all 0.3s ease;
+      border-radius: 24px;
+      padding: 2rem;
+      backdrop-filter: blur(16px);
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      position: relative;
+    }
+
+    .memorial-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--gold);
+      box-shadow: 0 15px 35px var(--gold-glow);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
     }
 
     .category-tag {
       display: inline-block;
-      padding: 0.3rem 0.85rem;
+      padding: 0.35rem 0.9rem;
       border-radius: 20px;
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
-      margin-bottom: 1rem;
+      letter-spacing: 0.5px;
     }
 
-    .tag-LAW_ENFORCEMENT { background: rgba(77, 147, 255, 0.2); color: #66b0ff; border: 1px solid rgba(77, 147, 255, 0.3); }
-    .tag-FIRE { background: rgba(255, 99, 99, 0.2); color: #ff8080; border: 1px solid rgba(255, 99, 99, 0.3); }
-    .tag-EMS { background: rgba(87, 217, 141, 0.2); color: #6ee7a0; border: 1px solid rgba(87, 217, 141, 0.3); }
-    .tag-K9 { background: rgba(245, 213, 107, 0.2); color: #ffe073; border: 1px solid rgba(245, 213, 107, 0.3); }
+    .tag-LAW_ENFORCEMENT { background: rgba(77, 147, 255, 0.2); color: #66b0ff; border: 1px solid rgba(77, 147, 255, 0.4); }
+    .tag-FIRE { background: rgba(255, 99, 99, 0.2); color: #ff8080; border: 1px solid rgba(255, 99, 99, 0.4); }
+    .tag-EMS { background: rgba(87, 217, 141, 0.2); color: #6ee7a0; border: 1px solid rgba(87, 217, 141, 0.4); }
+    .tag-K9 { background: rgba(245, 213, 107, 0.2); color: #ffe073; border: 1px solid rgba(245, 213, 107, 0.4); }
 
-    .memorial-card h3 { font-family: var(--font-serif); font-size: 1.4rem; color: var(--gold); margin-bottom: 0.4rem; }
+    .card-thumb {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px;
+    }
+
+    .memorial-card h3 {
+      font-family: var(--font-serif);
+      font-size: 1.45rem;
+      color: var(--gold);
+      margin-bottom: 0.4rem;
+      line-height: 1.3;
+    }
+
+    .dept-line {
+      color: #a0aec0;
+      font-size: 0.95rem;
+      margin-bottom: 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .card-bio {
+      font-size: 0.95rem;
+      color: #cbd5e0;
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
 
     .card-actions {
       display: flex;
-      justify-content: space-between;
+      gap: 0.6rem;
       align-items: center;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
-      padding-top: 1.1rem;
+      padding-top: 1.25rem;
     }
 
-    .candle-button {
-      background: rgba(229, 192, 123, 0.15);
-      border: 1px solid rgba(229, 192, 123, 0.4);
+    .btn-candle {
+      flex: 1;
+      background: rgba(229, 192, 123, 0.18);
+      border: 1px solid rgba(229, 192, 123, 0.5);
       color: var(--gold);
-      padding: 0.55rem 1.1rem;
-      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .btn-candle:hover {
+      background: var(--gold);
+      color: #000;
+    }
+
+    .btn-cert {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text);
+      padding: 0.65rem 0.85rem;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .btn-cert:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    .btn-details {
+      background: transparent;
+      border: none;
+      color: var(--muted);
       cursor: pointer;
       font-weight: 600;
       font-size: 0.85rem;
+      padding: 0.65rem 0.5rem;
+      transition: all 0.2s ease;
     }
+
+    .btn-details:hover { color: #fff; }
 
     #mapContainer {
       height: 550px;
@@ -270,6 +356,16 @@
     let wallRecords = [];
     let activeCat = 'ALL';
     let map = null;
+
+    const CATEGORY_THUMBNAILS = {
+      "LAW_ENFORCEMENT": "https://img.icons8.com/color/96/police-badge.png",
+      "FIRE": "https://img.icons8.com/color/96/firefighter-helmet.png",
+      "EMS": "https://img.icons8.com/color/96/star-of-life.png",
+      "RESCUE": "https://img.icons8.com/color/96/lifebuoy.png",
+      "K9": "https://img.icons8.com/color/96/dog.png",
+      "DISPATCH": "https://img.icons8.com/color/96/headset.png",
+      "OTHER": "https://img.icons8.com/color/96/ribbon.png"
+    };
 
     const MAJOR_CITIES_COORDS = {
       "LAS VEGAS": [36.1716, -115.1391],
@@ -364,23 +460,17 @@
       if (r.latitude && r.longitude) return [r.latitude, r.longitude];
       const text = `${r.agency || ''} ${r.summary || ''} ${r.name || ''}`.toUpperCase();
 
-      // Priority 1: Exact Major Cities (e.g. LAS VEGAS, CHICAGO, NYPD)
       for (const [city, coords] of Object.entries(MAJOR_CITIES_COORDS)) {
         if (text.includes(city)) return coords;
       }
-
-      // Priority 2: Full State Names (e.g. NEVADA, CALIFORNIA)
       for (const [state, coords] of Object.entries(US_FULL_STATES)) {
         if (text.includes(state)) return coords;
       }
-
-      // Priority 3: 2-Letter State Codes with strict word boundaries (\bNV\b, \bCA\b)
       for (const [code, coords] of Object.entries(US_STATE_CODES)) {
         const regex = new RegExp(`\\b${code}\\b`, 'i');
         if (regex.test(text)) return coords;
       }
-
-      return [39.8283, -98.5795]; // Center of USA default fallback
+      return [39.8283, -98.5795];
     }
 
     async function fetchWallData() {
@@ -421,18 +511,22 @@
       filtered.forEach(r => {
         const card = document.createElement('div');
         card.className = 'memorial-card';
+        const thumbUrl = r.photo_url || CATEGORY_THUMBNAILS[r.category] || CATEGORY_THUMBNAILS["OTHER"];
+
         card.innerHTML = `
           <div>
-            <span class="category-tag tag-${r.category}">${r.category.replace('_', ' ')}</span>
-            <small style="float: right; color: var(--muted);">ID #${r.id}</small>
+            <div class="card-top">
+              <span class="category-tag tag-${r.category}">${r.category.replace('_', ' ')}</span>
+              <img src="${thumbUrl}" class="card-thumb" alt="${r.category}">
+            </div>
             <h3>${r.name}</h3>
-            <div style="color: var(--muted); margin-bottom: 0.75rem;">🏛️ ${r.agency} • EOW: ${r.date_of_death || 'Line of Duty'}</div>
-            <div style="font-size: 0.95rem; color: #c9d1d9; margin-bottom: 1.25rem;">${r.ai_memorial_text || r.summary || ''}</div>
+            <div class="dept-line">🏛️ ${r.agency} • EOW: ${r.date_of_death || 'Line of Duty'}</div>
+            <div class="card-bio">${r.ai_memorial_text || r.summary || ''}</div>
           </div>
           <div class="card-actions">
-            <button class="candle-button" onclick="lightVirtualCandle(${r.id}, event)">🕯️ Light Candle (<span id="cCount-${r.id}">${r.candle_count || 0}</span>)</button>
-            <a href="/responders/${r.id}/certificate" target="_blank" style="color: var(--gold); font-size: 0.85rem; font-weight:600;">📜 Certificate</a>
-            <button style="background:none; border:none; color:var(--text); cursor:pointer; font-weight:600;" onclick="openDrawer(${r.id})">Details 📖</button>
+            <button class="btn-candle" onclick="lightVirtualCandle(${r.id}, event)">🕯️ Candle (<span id="cCount-${r.id}">${r.candle_count || 0}</span>)</button>
+            <a href="/responders/${r.id}/certificate" target="_blank" class="btn-cert">📜 Certificate</a>
+            <button class="btn-details" onclick="openDrawer(${r.id})">Details 📖</button>
           </div>
         `;
         grid.appendChild(card);

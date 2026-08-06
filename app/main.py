@@ -231,6 +231,7 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap" rel="stylesheet">
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
       <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
@@ -273,6 +274,19 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
           transition: all 0.2s ease;
         }}
         .print-btn:hover {{ background: #fff; transform: scale(1.05); }}
+        .download-btn {{
+          background: #1f6feb;
+          color: #fff;
+          border: none;
+          padding: 0.6rem 1.3rem;
+          border-radius: 20px;
+          font-weight: 700;
+          font-family: sans-serif;
+          cursor: pointer;
+          font-size: 0.9rem;
+          transition: all 0.2s ease;
+        }}
+        .download-btn:hover {{ background: #4d93ff; transform: scale(1.05); }}
 
         /* Certificate Paper Sheet */
         .cert-container {{
@@ -440,14 +454,27 @@ async def generate_tribute_certificate(id: int, db: Session = Depends(get_db)):
         }}
       </style>
     </head>
-    <body>
-
       <div class="print-bar">
         <span style="color: #e5c07b; font-weight: 600; font-family: sans-serif; font-size: 0.9rem;">📜 Official Tribute Certificate</span>
-        <button class="print-btn" onclick="window.print()">🖨️ Print / Download PDF</button>
+        <button class="download-btn" onclick="downloadPDF()">📥 Download PDF File</button>
+        <button class="print-btn" onclick="window.print()">🖨️ Print Certificate</button>
       </div>
 
-      <div class="cert-container">
+      <script>
+        function downloadPDF() {{
+          const element = document.getElementById('certDoc');
+          const opt = {{
+            margin:       0.2,
+            filename:     'Certificate_{record.name.replace(" ", "_")}.pdf',
+            image:        {{ type: 'jpeg', quality: 0.98 }},
+            html2canvas:  {{ scale: 2, useCORS: true }},
+            jsPDF:        {{ unit: 'in', format: 'letter', orientation: 'landscape' }}
+          }};
+          html2pdf().set(opt).from(element).save();
+        }}
+      </script>
+
+      <div class="cert-container" id="certDoc">
         <div class="cert-inner-border">
           
           <div class="cert-header">
