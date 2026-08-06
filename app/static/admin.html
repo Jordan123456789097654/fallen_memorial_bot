@@ -306,9 +306,10 @@
       <div class="card-panel">
         <h3>📊 Intelligence System Status</h3>
         <p style="color: var(--muted); margin-top: 0.5rem;">FastAPI host and discord.py Bot are running concurrently within the same event loop.</p>
-        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+        <div style="margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
           <button class="action-btn btn-scan" onclick="triggerNewsScan()">🔍 Trigger Manual News Scan</button>
           <button class="action-btn btn-maint" onclick="toggleMaintenance()">🛠️ Toggle Maintenance Mode</button>
+          <button class="action-btn" style="background: #da3633; color: #fff; font-weight: 700;" onclick="toggleWebsiteShutdown()">🔴 SHUTDOWN WEBSITE COMPLETELY</button>
         </div>
       </div>
     </div>
